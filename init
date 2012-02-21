@@ -1,0 +1,66 @@
+#!/bin/sh
+
+# = Functions =
+
+# Purpose: Emergency local rescue shell.
+do_shell() {
+   echo "Do your best!"
+   /bin/busybox --install -s
+   exec /bin/sh
+}
+
+# Purpose: Mount encrypted devices.
+do_mount_crypt() {
+   # TODO: Move these to an external config file somehow.
+   echo "$1" | /sbin/cryptsetup luksOpen /dev/sda7 swap 2>/dev/null
+   echo "$1" | /sbin/cryptsetup luksOpen /dev/sda5 root 2>/dev/null
+   /bin/mount -o ro /dev/mapper/root /mnt/root 2>/dev/null
+
+   if [ 0 = $? ]; then
+      SMNTED_ROOT="Y"
+   fi
+}
+
+# = Main Procedure =
+
+# Get ready to get the system ready.
+/bin/mount -t devtmpfs none /dev
+/bin/mount -t proc none /proc
+/bin/mount -t sysfs none /sys
+
+# Get the user password.
+PP_ATTEMPTS=0
+while [ $PP_ATTEMPTS -lt 4 ]; do
+   echo "Passphrase?"
+   read -s P
+   do_mount_crypt "$P"
+   
+   # Note a bad attempt.
+   if [ "$SMNTED_ROOT" = "Y" ]; then
+      continue
+   else
+      $PP_ATTEMPTS=$[$PP_ATTEMPTS+1]
+   fi
+done
+
+# Write the disk password to a temporary memory disk so it can be used later.
+if [ "Y" = "$SMNTED_ROOT" ]; then
+   MKEY_TMP="/mnt/root/mnt/dkey"
+   if [ ! -d "$MKEY_TMP" ]; then
+      /bin/mkdir -p $MKEY_TMP
+   fi
+
+   /bin/mount -t tmpfs -o size=500K none "$MKEY_TMP"
+   echo "$P" > "$MKEY_TMP/tkey"
+else
+   # Failure to mount!
+   /sbin/reboot
+fi
+
+# Clean up and prepare for the real thing.
+/bin/umount /dev
+/bin/umount /proc
+/bin/umount /sys
+
+exec switch_root /mnt/root /sbin/init
+
