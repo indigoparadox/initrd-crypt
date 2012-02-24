@@ -3,22 +3,11 @@
 # = Functions =
 
 # Purpose: Emergency local rescue shell.
+# TODO: Must this be a function?
 do_shell() {
    echo "Do your best!"
    /bin/busybox --install -s
    exec /bin/sh
-}
-
-# Purpose: Mount encrypted devices.
-do_mount_crypt() {
-   # TODO: Move these to an external config file somehow.
-   echo "$1" | /sbin/cryptsetup luksOpen /dev/sda7 swap 2>/dev/null
-   echo "$1" | /sbin/cryptsetup luksOpen /dev/sda5 root 2>/dev/null
-   /bin/mount -o ro /dev/mapper/root /mnt/root 2>/dev/null
-
-   if [ 0 = $? ]; then
-      SMNTED_ROOT="Y"
-   fi
 }
 
 # = Main Procedure =
@@ -28,36 +17,39 @@ do_mount_crypt() {
 /bin/mount -t proc none /proc
 /bin/mount -t sysfs none /sys
 
-# Get the user password.
-PP_ATTEMPTS=0
-while [ $PP_ATTEMPTS -lt 4 ]; do
-   echo "Passphrase?"
-   read -s P
-   do_mount_crypt "$P"
-   
-   # Note a bad attempt.
-   if [ "$SMNTED_ROOT" = "Y" ]; then
-      continue
-   else
-      $PP_ATTEMPTS=$[$PP_ATTEMPTS+1]
+# Remember some things...
+_CFG_U="`/sbin/cryptscript -u`"
+
+# Try to mount the unencrypted boot for cryptscript.
+CFG_U_FOUND=0
+for BLK_PROBE_ITER in `ls -1 /dev/sd*`; do
+   /bin/mount -o ro "$BLK_PROBE_ITER" /mnt/boot 2>/dev/null
+   if [ -f "$_CFG_U" ]; then
+      CFG_U_FOUND=1
+      echo "Found unencrypted config file."
+      break
    fi
 done
 
-# Write the disk password to a temporary memory disk so it can be used later.
-if [ "Y" = "$SMNTED_ROOT" ]; then
-   MKEY_TMP="/mnt/root/mnt/dkey"
-   if [ ! -d "$MKEY_TMP" ]; then
-      /bin/mkdir -p $MKEY_TMP
-   fi
-
-   /bin/mount -t tmpfs -o size=500K none "$MKEY_TMP"
-   echo "$P" > "$MKEY_TMP/tkey"
-else
-   # Failure to mount!
-   /sbin/reboot
+if [ -f "$_CFG_U" ] && [ -n "`/bin/grep "^SSH" "${_CFG_U}"`" ]; then
+   # Start the remote listener.
+   # TODO
+   echo "Started remote decryption service."
 fi
 
+# Get the user password.
+/sbin/cryptscript
+
+if [ 0 != $? ]; then
+   # Failure to mount!
+   #/sbin/reboot
+   do_shell
+fi
+
+/sbin/splash_util --mmode=s -c setmode
+
 # Clean up and prepare for the real thing.
+/bin/umount /mnt/boot 2>/dev/null
 /bin/umount /dev
 /bin/umount /proc
 /bin/umount /sys

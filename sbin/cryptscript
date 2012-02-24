@@ -1,0 +1,78 @@
+#!/bin/sh
+
+# cryptscript
+# Author: Alexander Boulette
+# Purpose: Mount encrypted devices.
+
+# TODO: Use two config files. One on the unencrypted root and one on the 
+# encrypted root.
+_CFG_U="/mnt/boot/.cryscry.cfg"
+_CFG_E="/mnt/root/.cryscry.cfg"
+
+# Process command line parameters.
+while [ "$1" ]; do
+   case "$1" in
+      "-u"|"--unencrypted-config")
+         echo "$_CFG_U"
+         exit 0
+         ;;
+
+      "-e"|"--encrypted-config")
+         echo "$_CFG_E"
+         exit 0
+         ;;
+   esac
+   shift
+done
+
+# Check environmental sanity.
+if [ ! -f $CFG_U_FOUND ]; then
+   echo "Unable to find unencrypted config file." >&2
+   exit 1
+fi
+
+# Attempt disk decryption.
+PP_ATTEMPTS=0
+while [ $PP_ATTEMPTS -lt 4 ]; do
+   # Get the disk password from the user.
+   echo "Passphrase?"
+   read -s P
+
+   # Try to mount the disks given the entered password.
+   for BLK_MNT_ITER in `/bin/grep "^M_LK" "$_CFG_U"`; do
+      DEV_ITER="`echo "$BLK_MNT_ITER" | /bin/awk -F'=' '{print $2}'`"
+      MAP_ITER="`echo "$BLK_MNT_ITER" | /bin/awk -F'=' '{print $3}'`"
+      echo "$P" | /sbin/cryptsetup luksOpen "$DEV_ITER" "$MAP_ITER" 2>/dev/null
+   done
+   /bin/mount -o ro /dev/mapper/root /mnt/root 2>/dev/null
+
+   if [ 0 = $? ]; then
+      if [ -f "$_CFG_E" ]; then
+         echo "Found encrypted config file."
+      fi
+
+      if [ -f "$_CFG_E" ] && [ -n "`/bin/grep "^KEY_TMP_ROOT" "${_CFG_E}"`" ]
+      then
+         # Write the disk password to a temporary memory disk so it can be used
+         # later.
+         MKEY_DIR="`/bin/grep "^KEY_TMP_ROOT" "${_CFG_E}" | \
+            /bin/awk -F'=' '{print $2}'`"
+         MKEY_TMP="/mnt/root$MKEY_DIR"
+         if [ ! -d "$MKEY_TMP" ]; then
+            /bin/mkdir -p $MKEY_TMP
+         fi
+         /bin/mount -t tmpfs -o size=500K none "$MKEY_TMP"
+         echo "$P" > "$MKEY_TMP/tkey"
+      fi
+
+      # Continue booting.
+      exit 0
+   else
+      # Note a bad attempt.
+      PP_ATTEMPTS=$(( $PP_ATTEMPTS+1 ))
+   fi
+done
+
+# Unable to complete successfully.
+exit 1
+
