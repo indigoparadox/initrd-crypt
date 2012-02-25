@@ -1,4 +1,0 @@
-glob:bin
-glob:sbin
-glob:lib
-glob:etc

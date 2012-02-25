@@ -2,6 +2,8 @@
 
 # = Functions =
 
+CFG_VERBOSE=1
+
 # Purpose: Emergency local rescue shell.
 # TODO: Must this be a function?
 do_shell() {
@@ -26,15 +28,30 @@ for BLK_PROBE_ITER in `ls -1 /dev/sd*`; do
    /bin/mount -o ro "$BLK_PROBE_ITER" /mnt/boot 2>/dev/null
    if [ -f "$_CFG_U" ]; then
       CFG_U_FOUND=1
-      echo "Found unencrypted config file."
+      if [ 1 = $CFG_VERBOSE ]; then
+         echo "Found unencrypted config file."
+      fi
       break
    fi
 done
 
-if [ -f "$_CFG_U" ] && [ -n "`/bin/grep "^SSH" "${_CFG_U}"`" ]; then
+if [ -f "$_CFG_U" ] && \
+   [ -n "`/bin/grep "^SSH" "${_CFG_U}"`" ] && \
+   [ -n "`/bin/grep "^IP4" "${_CFG_U}" | /bin/awk -F'=' '{print $2}'`" ]
+   [ -n "`/bin/grep "^IP4" "${_CFG_U}" | /bin/awk -F'=' '{print $3}'`" ]
+then
    # Start the remote listener.
-   # TODO
-   echo "Started remote decryption service."
+   CFG_NET_IF="`/bin/grep "^IP4" "${_CFG_U}" | /bin/awk -F'=' '{print $2}'`"
+   CFG_NET_IP4="`/bin/grep "^IP4" "${_CFG_U}" | /bin/awk -F'=' '{print $3}'`"
+   /sbin/ifconfig "$CFG_NET_IF" "$CFG_NET_IP4"
+   /sbin/ifconfig "$CFG_NET_IF" up
+   if [ 0 != $? ] && [ 1 = $CFG_VERBOSE ]; then
+      echo "Started network on $CFG_NET_IF with address $CFG_NET_IP4."
+   fi
+   /sbin/dropbear -s -j -k -p $CFG_NET_IP4:4450
+   if [ 0 != $? ] && [ 1 = $CFG_VERBOSE ]; then
+      echo "Started remote decryption service."
+   fi
 fi
 
 # Get the user password.
@@ -46,9 +63,12 @@ if [ 0 != $? ]; then
    do_shell
 fi
 
-/sbin/splash_util --mmode=s -c setmode
+/sbin/splash_util --mode=s -c setmode
 
 # Clean up and prepare for the real thing.
+if [ -n "$CFG_NET_IF" ]; then
+   /sbin/ifconfig $CFG_NET_IF down 2>/dev/null
+fi
 /bin/umount /mnt/boot 2>/dev/null
 /bin/umount /dev
 /bin/umount /proc
