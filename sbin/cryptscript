@@ -4,8 +4,12 @@
 # Author: Alexander Boulette
 # Purpose: Mount encrypted devices.
 
-# TODO: Use two config files. One on the unencrypted root and one on the 
-# encrypted root.
+if [ -z "$CFG_VERBOSE" ]; then
+   CFG_VERBOSE=0
+fi
+
+# Use two config files. One on the unencrypted root and one on the encrypted 
+# root.
 _CFG_U="/mnt/boot/.cryscry.cfg"
 _CFG_E="/mnt/root/.cryscry.cfg"
 
@@ -47,7 +51,7 @@ while [ $PP_ATTEMPTS -lt 4 ]; do
    /bin/mount -o ro /dev/mapper/root /mnt/root 2>/dev/null
 
    if [ 0 = $? ]; then
-      if [ -f "$_CFG_E" ]; then
+      if [ -f "$_CFG_E" ] && [ 1 = $CFG_VERBOSE ]; then
          echo "Found encrypted config file."
       fi
 

@@ -1,47 +1,24 @@
 #!/bin/sh
 
-# = Functions =
-
-CFG_VERBOSE=1
-
-# Purpose: Emergency local rescue shell.
-# TODO: Must this be a function?
-do_shell() {
-   echo "Do your best!"
-   /bin/busybox --install -s
-   exec /bin/sh
-}
-
-do_cleanup() {
-   if [ -n "$CFG_NET_IF" ]; then
-      killall dropbear
-      /sbin/ifconfig $CFG_NET_IF down 2>/dev/null
-   fi
-   /bin/umount /mnt/boot 2>/dev/null
-   /bin/umount /dev/pts
-   /bin/umount /dev
-   /bin/umount /proc
-   /bin/umount /sys
-}
-
-# = Main Procedure =
-
 # Get ready to get the system ready.
-/bin/mount -t devtmpfs none /dev
-/bin/mount -t proc none /proc
-/bin/mount -t sysfs none /sys
-mkdir /dev/pts
-/bin/mount -t devpts -o uid=0,gid=5,mode=620 devpts /dev/pts
+/sbin/sysmounts -m
 
 # Remember some things...
 _CFG_U="`/sbin/cryptscript -u`"
 
 # Try to mount the unencrypted boot for cryptscript.
+export CFG_VERBOSE=0
 CFG_U_FOUND=0
 for BLK_PROBE_ITER in `ls -1 /dev/sd*`; do
    /bin/mount -o ro "$BLK_PROBE_ITER" /mnt/boot 2>/dev/null
    if [ -f "$_CFG_U" ]; then
       CFG_U_FOUND=1
+
+      # This is a weird place to set verbosity but we use it right away.
+      if [ -n "`/bin/grep "V=1" $_CFG_U`" ]; then
+         export CFG_VERBOSE=1
+      fi
+
       if [ 1 = $CFG_VERBOSE ]; then
          echo "Found unencrypted config file."
       fi
@@ -73,15 +50,14 @@ fi
 
 if [ 0 != $? ]; then
    # Failure to mount!
-   do_cleanup
    /sbin/reboot -f
-   #do_shell
+   do_cleanup
+   #/bin/busybox --install && /bin/sh
 fi
 
-/sbin/splash_util --mode=s -c setmode
-
 # Clean up and prepare for the real thing.
-do_cleanup
+/sbin/splash_util --mode=s -c setmode
+/sbin/sysmounts -u
 
 exec switch_root /mnt/root /sbin/init
 

@@ -1,0 +1,16 @@
+#!/bin/sh
+
+/sbin/cryptscript
+
+if [ 0 != $? ]; then
+   # Failure to mount!
+   do_cleanup
+   /sbin/reboot -f
+fi
+
+# Clean up and prepare for the real thing.
+/sbin/splash_util --mode=s -c setmode
+/sbin/sysmounts -u
+
+exec switch_root /mnt/root /sbin/init
+

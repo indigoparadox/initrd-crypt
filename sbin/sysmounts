@@ -1,0 +1,28 @@
+#!/bin/sh
+
+if [ "$1" = "-m" ]; then
+   # Mount filesystems.
+   /bin/mount -t devtmpfs none /dev
+   /bin/mount -t proc none /proc
+   /bin/mount -t sysfs none /sys
+   mkdir /dev/pts
+   /bin/mount -t devpts -o uid=0,gid=5,mode=620 devpts /dev/pts
+
+elif [ "$1" = "-u" ]; then
+   # Shut down network stuff as well.
+   killall dropbear 2>/dev/null
+   for DEV_ITER in `cat /proc/net/dev | awk '{print $1}' | grep ":$" | \
+      sed s/.$//`
+   do
+      ifconfig $DEV_ITER down 2>/dev/null
+   done
+
+   # Unmount filesystems.
+   /bin/umount /mnt/boot 2>/dev/null
+   /bin/umount /dev/pts
+   rm -r /dev/pts
+   /bin/umount /dev
+   /bin/umount /proc
+   /bin/umount /sys
+fi
+
