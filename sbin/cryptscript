@@ -4,6 +4,9 @@
 # Author: Alexander Boulette
 # Purpose: Mount encrypted devices.
 
+trap ':' INT
+trap ':' TSTP
+
 if [ -z "$CFG_VERBOSE" ]; then
    CFG_VERBOSE=0
 fi
@@ -31,7 +34,7 @@ done
 
 # Check environmental sanity.
 if [ ! -f $CFG_U_FOUND ]; then
-   echo "Unable to find unencrypted config file." >&2
+   echo "Unable to find uscry file." >&2
    exit 1
 fi
 
@@ -39,7 +42,7 @@ fi
 PP_ATTEMPTS=0
 while [ $PP_ATTEMPTS -lt 4 ]; do
    # Get the disk password from the user.
-   echo "Passphrase?"
+   echo "Well, here we are."
    read -s P
 
    # Try to mount the disks given the entered password.
@@ -52,7 +55,7 @@ while [ $PP_ATTEMPTS -lt 4 ]; do
 
    if [ 0 = $? ]; then
       if [ -f "$_CFG_E" ] && [ 1 = $CFG_VERBOSE ]; then
-         echo "Found encrypted config file."
+         echo "Found escry file."
       fi
 
       if [ -f "$_CFG_E" ] && [ -n "`/bin/grep "^KEY_TMP_ROOT" "${_CFG_E}"`" ]

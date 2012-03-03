@@ -4,13 +4,18 @@
 
 if [ 0 != $? ]; then
    # Failure to mount!
-   do_cleanup
-   /sbin/reboot -f
+   #/sbin/sysmounts -u
+   #/sbin/reboot -f
+   exit
+else
+   # Clean up and prepare for the real thing.
+   killall -USR1 init && \
+   killall cryptscript
+   exit
 fi
 
-# Clean up and prepare for the real thing.
-/sbin/splash_util --mode=s -c setmode
-/sbin/sysmounts -u
+#/sbin/splash_util --mode=s -c setmode
+#/sbin/sysmounts -u
 
-exec switch_root /mnt/root /sbin/init
+#exec switch_root /mnt/root /sbin/init
 
