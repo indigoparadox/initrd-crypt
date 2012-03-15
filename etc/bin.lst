@@ -1,0 +1,14 @@
+bin/busybox d
+sbin/cryptsetup s
+sbin/dropbear s
+sbin/fbcondecor_helper s
+sbin/lvm s
+sbin/mdadm s
+sbin/splash_util s
+lib/ld-linux.so.2 l
+lib/libc.so.6 l
+lib/libcrypt.so.1 l
+lib/libnss_files-2.13.so l
+lib/libnss_files.so.2 l
+lib/libutil.so.1 l
+lib/libz.so.1 l
