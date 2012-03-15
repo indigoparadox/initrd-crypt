@@ -7,6 +7,93 @@ sigusr1() {
    REMOTE_USR1=1
 }
 
+# = Functions =
+
+# Purpose: Find the block device with the requested file and mount it on /boot.
+# Parameters: The file to probe block devices for.
+probe_block() {
+   BLOCK_PROBE_FOUND=0
+   # TODO: Detect other kinds of block devices, maybe?
+   for BLK_PROBE_ITER in `ls -1 /dev/sd*`; do
+      /bin/mount -o ro "$BLK_PROBE_ITER" /mnt/boot 2>/dev/null
+      if [ -f "$1" ]; then
+         BLOCK_PROBE_FOUND=1
+
+         # This is a weird place to set verbosity but we use it right away.
+         # TODO: Get verbose key from the command line.
+         #if [ -n "`/bin/grep "V=1" $1`" ]; then
+         #   export CFG_VERBOSE=1
+         #fi
+
+         if [ 1 = $CFG_VERBOSE ]; then
+            echo "Found $1."
+         fi
+         break
+      fi
+   done
+}
+
+action_crypt() {
+   # Remember some things.
+   export CFG_VERBOSE=0
+   REMOTE_USR1=0
+   _CFG_U="`/sbin/cryptscript -u`"
+
+   # Try to mount the unencrypted boot for cryptscript.
+   probe_block $_CFG_U
+
+   if [ $BLOCK_PROBE_FOUND -ne 1 ]; then
+      # No config file was found, so quit.
+      action_console
+   fi
+
+   if [ -f "$_CFG_U" ] && \
+      [ -n "`/bin/grep "^SSH" "${_CFG_U}"`" ] && \
+      [ -n "`/bin/grep "^IP4" "${_CFG_U}" | /bin/awk -F'=' '{print $2}'`" ]
+      [ -n "`/bin/grep "^IP4" "${_CFG_U}" | /bin/awk -F'=' '{print $3}'`" ]
+   then
+      # Listen for the queue to skip local decryption.
+      trap 'sigusr1' USR1
+
+      # Start the remote listener.
+      CFG_NET_IF="`/bin/grep "^IP4" "${_CFG_U}" | /bin/awk -F'=' '{print $2}'`"
+      CFG_NET_IP4="`/bin/grep "^IP4" "${_CFG_U}" | /bin/awk -F'=' '{print $3}'`"
+      /sbin/ifconfig "$CFG_NET_IF" "$CFG_NET_IP4"
+      /sbin/ifconfig "$CFG_NET_IF" up
+      if [ 0 != $? ] && [ 1 = $CFG_VERBOSE ]; then
+         echo "Started network on $CFG_NET_IF with address $CFG_NET_IP4."
+      fi
+      /sbin/dropbear -s -j -k -p $CFG_NET_IP4:4450 >/dev/null 2>&1
+      if [ 0 != $? ] && [ 1 = $CFG_VERBOSE ]; then
+         echo "Started remote decryption service."
+      fi
+   fi
+
+   # Get the user password.
+   /sbin/cryptscript
+
+   if [ $REMOTE_USR1 = 0 ] && [ 0 != $? ]; then
+      # Failure to mount!
+      #/bin/busybox --install && /bin/sh
+      /sbin/sysmounts -u
+      /sbin/reboot -f
+   fi
+}
+
+action_loop() {
+   probe_block /mnt/boot/liveusb
+
+   mount -o loop -t squashfs \
+      /mnt/boot/liveboot/recovery/usbgentoo/usbgentoo.fs \
+      /mnt/root || \
+   action_console
+}
+
+action_console() {
+   echo "Do your best!"
+   /bin/busybox --install && /bin/sh
+}
+
 # = Main Procedure =
 
 # Get ready to get the system ready.
@@ -19,70 +106,41 @@ if [ -f /etc/modules.list ] && [ -n "`cat /etc/modules.list`" ]; then
    done
 fi
 
-# Remember some things.
-export CFG_VERBOSE=0
-REMOTE_USR1=0
-_CFG_U="`/sbin/cryptscript -u`"
+# Should we be quiet?
+if [ -z "`grep quiet /proc/cmdline`" ]; then
+   CFG_VERBOSE=0
+else
+   CFG_VERBOSE=1
+fi
 
-# Try to mount the unencrypted boot for cryptscript.
-CFG_U_FOUND=0
-for BLK_PROBE_ITER in `ls -1 /dev/sd*`; do
-   /bin/mount -o ro "$BLK_PROBE_ITER" /mnt/boot 2>/dev/null
-   if [ -f "$_CFG_U" ]; then
-      CFG_U_FOUND=1
+# Wait for USB devices.
+sleep 4
 
-      # This is a weird place to set verbosity but we use it right away.
-      if [ -n "`/bin/grep "V=1" $_CFG_U`" ]; then
-         export CFG_VERBOSE=1
-      fi
+# Figure out our intended action.
+for CMDLINE_ITER in `cat /proc/cmdline`; do
+   CMD_KEY_ITER=`echo $CMDLINE_ITER | awk 'BEGIN { FS="=" } {print $1}'`
+   CMD_VAL_ITER=`echo $CMDLINE_ITER | awk 'BEGIN { FS="=" } {print $2}'`
+   if [ "initdo" = "$CMD_KEY_ITER" ]; then
+      # Execute the specified initrd action.
+      case $CMD_VAL_ITER in
+         "crypt")
+            action_crypt
+            ;;
 
-      if [ 1 = $CFG_VERBOSE ]; then
-         echo "Found uscry config file."
-      fi
+         "loop")
+            action_loop
+            ;;
+
+         *)
+            action_console
+            ;;
+      esac
       break
    fi
 done
 
-if [ $CFG_U_FOUND -ne 1 ]; then
-   # No config file was found, so quit.
-   echo "Do your best!"
-   /bin/busybox --install && /bin/sh
-fi
-
-if [ -f "$_CFG_U" ] && \
-   [ -n "`/bin/grep "^SSH" "${_CFG_U}"`" ] && \
-   [ -n "`/bin/grep "^IP4" "${_CFG_U}" | /bin/awk -F'=' '{print $2}'`" ]
-   [ -n "`/bin/grep "^IP4" "${_CFG_U}" | /bin/awk -F'=' '{print $3}'`" ]
-then
-   # Listen for the queue to skip local decryption.
-   trap 'sigusr1' USR1
-
-   # Start the remote listener.
-   CFG_NET_IF="`/bin/grep "^IP4" "${_CFG_U}" | /bin/awk -F'=' '{print $2}'`"
-   CFG_NET_IP4="`/bin/grep "^IP4" "${_CFG_U}" | /bin/awk -F'=' '{print $3}'`"
-   /sbin/ifconfig "$CFG_NET_IF" "$CFG_NET_IP4"
-   /sbin/ifconfig "$CFG_NET_IF" up
-   if [ 0 != $? ] && [ 1 = $CFG_VERBOSE ]; then
-      echo "Started network on $CFG_NET_IF with address $CFG_NET_IP4."
-   fi
-   /sbin/dropbear -s -j -k -p $CFG_NET_IP4:4450 >/dev/null 2>&1
-   if [ 0 != $? ] && [ 1 = $CFG_VERBOSE ]; then
-      echo "Started remote decryption service."
-   fi
-fi
-
-# Get the user password.
-/sbin/cryptscript
-
-if [ $REMOTE_USR1 = 0 ] && [ 0 != $? ]; then
-   # Failure to mount!
-   #/bin/busybox --install && /bin/sh
-   /sbin/sysmounts -u
-   /sbin/reboot -f
-fi
-
 # Clean up and prepare for the real thing.
-/sbin/splash_util --mode=s -c setmode
+#/sbin/splash_util --mode=s -c setmode
 /sbin/sysmounts -u
 
 exec switch_root /mnt/root /sbin/init
