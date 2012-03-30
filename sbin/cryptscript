@@ -48,22 +48,24 @@ while [ $PP_ATTEMPTS -lt 4 ]; do
    fi
 
    # Try to start the LVM modules inside
-   /sbin/vgscan --mknodes
-   /sbin/vgchange -a y cvg
+   if [ -b "/dev/mapper/crypt-lvm" ]; then
+      /sbin/vgscan --mknodes
+      /sbin/vgchange -a y cvg
+   fi
 
    # Try to prepare the root device.
    if [ -b "/dev/mapper/root" ]; then
-      /bin/mount -o ro /dev/mapper/root /mnt/root 2>/dev/null
+      /bin/mount -o ro /dev/mapper/root /mnt/root
    elif [ -b "/dev/mapper/crypt-root" ]; then
-      /bin/mount -o ro /dev/mapper/root /mnt/root 2>/dev/null
+      /bin/mount -o ro /dev/mapper/crypt-root /mnt/root
    else
       echo "No potential root device found."
-      read -p
+      read -s X
       exit 1
    fi
 
    # Handle encrypted configuration directives if there are any.
-   if [ -f "$_CFG_E" ] && [ -n "`/bin/grep "^KEY_TMP_ROOT" "${_CFG_E}"`" ]
+   if [ -f "$_CFG_E" ] && [ -n "`/bin/grep "^KEY_TMP_ROOT" "$_CFG_E"`" ]
    then
       if [ 1 = $CFG_VERBOSE ]; then
          echo "Found escry file."
@@ -71,7 +73,7 @@ while [ $PP_ATTEMPTS -lt 4 ]; do
 
       # Write the disk password to a temporary memory disk so it can be used
       # later.
-      MKEY_DIR="`/bin/grep "^KEY_TMP_ROOT" "${_CFG_E}" | \
+      MKEY_DIR="`/bin/grep "^KEY_TMP_ROOT" "$_CFG_E" | \
          /bin/awk -F'=' '{print $2}'`"
       MKEY_TMP="/mnt/root$MKEY_DIR"
       if [ ! -d "$MKEY_TMP" ]; then
