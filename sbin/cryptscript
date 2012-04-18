@@ -60,7 +60,7 @@ while [ $PP_ATTEMPTS -lt 4 ]; do
       /bin/mount -o ro /dev/mapper/crypt-root /mnt/root
    else
       echo "No potential root device found."
-      read -s X
+      #read -s X
       exit 1
    fi
 
