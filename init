@@ -91,12 +91,17 @@ action_crypt() {
       CFG_SSH_PORT="`/bin/grep "^SSH" "/etc/cryscry.cfg" | \
          /bin/awk -F'=' '{print $2}'`"
 
-      /sbin/ifconfig "$CFG_NET_IF" "$CFG_NET_IP4"
       /sbin/ifconfig "$CFG_NET_IF" up
+      if [ "$CFG_NET_IP4" = "DHCP" ]; then
+         /bin/udhcpc -t 5 -q -s /bin/simple.script &
+      else
+         /sbin/ifconfig "$CFG_NET_IF" "$CFG_NET_IP4"
+      fi
+
       if [ 0 != $? ] && [ 1 = $CFG_VERBOSE ]; then
          echo "Started network on $CFG_NET_IF with address $CFG_NET_IP4."
       fi
-      /sbin/dropbear -s -j -k -p $CFG_NET_IP4:$CFG_SSH_PORT >/dev/null 2>&1
+      /sbin/dropbear -s -j -k -p $CFG_SSH_PORT >/dev/null 2>&1
       if [ 0 != $? ] && [ 1 = $CFG_VERBOSE ]; then
          echo "Started remote decryption service."
       fi
