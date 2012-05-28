@@ -33,6 +33,26 @@ probe_block() {
    done
 }
 
+probe_usr() {
+   PREMOUNT_USR_NUMBER=`/bin/cat /mnt/root/etc/fstab | \
+      /bin/awk '{print $2}' | /bin/grep -n ^/usr$ | \
+      /bin/awk 'BEGIN {FS=":"} {print $1}'`
+   if [ -n "$PREMOUNT_USR_NUMBER" ]; then
+      # The /usr partition is separate, so premount it.
+      PREMOUNT_USR_LINE="`head -n $PREMOUNT_USR_NUMBER /etc/fstab | \
+         tail -n 1`"
+      PREMOUNT_USR_DEV="`echo $PREMOUNT_USR_LINE | /bin/awk '{print $1}'`"
+      /bin/mount -o ro "$PREMOUNT_USR_DEV" /mnt/root/usr
+
+      if [ $? -eq 0 ]; then
+         echo "Premount success!"
+      else
+         echo "Premount failed..."
+      fi
+      read
+   fi
+}
+
 action_crypt() {
    # Remember some things.
    export CFG_VERBOSE=0
@@ -85,12 +105,15 @@ action_crypt() {
    # Get the user password.
    /sbin/cryptscript
 
-   if [ $REMOTE_USR1 = 0 ] && [ 0 != $? ]; then
+   if [ 0 != $? ] && [ $REMOTE_USR1 = 0 ]; then
       # Failure to mount!
       #/bin/busybox --install && /bin/sh
       /sbin/sysmounts -u
       /sbin/reboot -f
    fi
+
+   # Try to premount /usr, because of the new udev.
+   probe_usr
 }
 
 action_loop() {
