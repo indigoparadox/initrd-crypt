@@ -30,11 +30,12 @@ while [ $PP_ATTEMPTS -lt 4 ]; do
       MAP_ITER="`echo "$BLK_MNT_ITER" | /bin/awk -F'=' '{print $3}'`"
       echo "$P" | /sbin/cryptsetup luksOpen "$DEV_ITER" "$MAP_ITER" 2>/dev/null
 
-      if [ 1 = $CFG_VERBOSE ] && [ 0 = $? ]; then
-         echo "Success."
-      elif [ 1 = $CFG_VERBOSE ] && [ 0 != $? ]; then
-         echo "Failure."
+      #if [ 0 = $? ] && [ 1 = $CFG_VERBOSE ]; then
+      #   echo "Success."
+      #elif [ 0 = $? ] && [ 1 = $CFG_VERBOSE ]; then
+      #   echo "Failure."
 
+      if [ 0 -ne $? ]; then
          # If even one device can't be unlocked then try again.
          PP_ATTEMPTS=$(( $PP_ATTEMPTS+1 ))
          PP_ATTEMPT_GOOD=0
