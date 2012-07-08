@@ -82,6 +82,7 @@ while [ $PP_ATTEMPTS -lt 4 ]; do
       fi
       /bin/mount -t tmpfs -o size=500K none "$MKEY_TMP"
       echo "$P" > "$MKEY_TMP/tkey"
+      chmod 0400 "$MKEY_TMP/tkey"
    fi
 
    # Continue booting.
