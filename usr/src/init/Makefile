@@ -1,5 +1,5 @@
 
-#CFLAGS = -mmcu=msp430g2553 -Wall
+CFLAGS = -Wall -include hosts/$(HOSTNAME).h
 
 all: init
 
