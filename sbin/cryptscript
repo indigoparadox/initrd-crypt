@@ -5,7 +5,8 @@
 # Purpose: Mount encrypted devices.
 
 trap ':' INT
-trap ':' TSTP
+#trap ':' TSTP
+trap '/bin/sh' TSTP
 
 if [ -z "$CFG_VERBOSE" ]; then
    CFG_VERBOSE=0
@@ -28,7 +29,7 @@ while [ $PP_ATTEMPTS -lt 4 ]; do
    for BLK_MNT_ITER in `/bin/grep "^M_LK" "/etc/cryscry.cfg"`; do
       DEV_ITER="`echo "$BLK_MNT_ITER" | /bin/awk -F'=' '{print $2}'`"
       MAP_ITER="`echo "$BLK_MNT_ITER" | /bin/awk -F'=' '{print $3}'`"
-      echo "$P" | /sbin/cryptsetup luksOpen "$DEV_ITER" "$MAP_ITER" 2>/dev/null
+      echo "$P" | /sbin/cryptsetup luksOpen "$DEV_ITER" "$MAP_ITER"
 
       #if [ 0 = $? ] && [ 1 = $CFG_VERBOSE ]; then
       #   echo "Success."
@@ -51,7 +52,7 @@ while [ $PP_ATTEMPTS -lt 4 ]; do
    # Try to start the LVM modules inside
    if [ -b "/dev/mapper/crypt-lvm" ]; then
       /sbin/vgscan --mknodes
-      /sbin/vgchange -a y cvg
+      /sbin/vgchange -a ay
    fi
 
    # Try to prepare the root device.
@@ -60,9 +61,19 @@ while [ $PP_ATTEMPTS -lt 4 ]; do
    elif [ -b "/dev/mapper/crypt-root" ]; then
       /bin/mount -o ro /dev/mapper/crypt-root /mnt/root
    else
-      echo "No potential root device found."
-      #read -s X
-      exit 1
+      ROOT_TEST=""
+      for ROOT_TEST_ITER in `ls /dev/mapper/*-root`; do
+         ROOT_TEST="$ROOT_TEST_ITER"
+         break
+      done
+      
+      if [ -z "$ROOT_TEST" ]; then
+         echo "No potential root device found."
+         #read -s X
+         exit 1
+      else
+         /bin/mount -o ro $ROOT_TEST /mnt/root
+      fi
    fi
 
    # Handle encrypted configuration directives if there are any.
