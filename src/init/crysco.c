@@ -1,6 +1,8 @@
 
 #include "crysco.h"
 
+/* Purpose: Attempt to decrypt encrypted volumes for this host.               */
+/* Return: 0 on success, 1 on failure.                                        */
 int attempt_decrypt( char* pc_key_in ) {
    int i_lvol_iter,
       i_lvol_count;
@@ -24,6 +26,9 @@ int attempt_decrypt( char* pc_key_in ) {
    return -1;
 }
 
+/* Purpose: Prompt for keys for attempts up to HOST_MAX_ATTEMPTS and call the *
+ *          decryption attempt routine for each key provided.                 */
+/* Return: 0 on success, 1 on failure.                                        */
 int prompt_decrypt( void ) {
    char* pc_key_buffer,
       c_char;

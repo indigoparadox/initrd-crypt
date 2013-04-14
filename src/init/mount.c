@@ -2,6 +2,7 @@
 #include "mount.h"
 
 /* Purpose: Prepare system mounts for a minimally functioning system.         */
+/* Return: 0 on success, 1 on failure.                                        */
 int mount_sys( BOOL b_umount_in ) {
    if( b_umount_in ) {
       if(
@@ -35,6 +36,7 @@ int mount_sys( BOOL b_umount_in ) {
 }
 
 /* Purpose: Setup /dev/md devices if any exist.                               */
+/* Return: 0 on success, 1 on failure.                                        */
 int mount_mds( void ) {
    int i_md_iter,
       i_dev_iter,
@@ -70,6 +72,7 @@ int mount_mds( void ) {
 }
 
 /* Purpose: Mount /usr before boot for compatbility with newer systems.       */
+/* Return: 0 on success, 1 on failure.                                        */
 int mount_probe_usr( void ) {
    /* TODO: Open fstab and see if a line exists for /usr. Mount if applicable.
     */
