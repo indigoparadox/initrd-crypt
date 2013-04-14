@@ -19,5 +19,7 @@ typedef int BOOL;
 #endif /* TRUE */
 #endif /* BOOL */
 
+char read_static( char, char );
+
 #endif /* DATATYPES_H */
 

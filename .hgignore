@@ -1,3 +1,6 @@
 glob:*.o
 glob:usr/src/init/init
 glob:usr/src/init/hosts
+glob:usr/src/init/sdata
+glob:usr/src/init/host.h
+glob:usr/src/init/host.c

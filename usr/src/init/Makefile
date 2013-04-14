@@ -1,11 +1,17 @@
 
-#CFLAGS = -Wall -include hosts/`hostname`.h
-CFLAGS = -Wall -include hosts/himmel.h
+#HOSTNAME = `hostname`
+HOSTNAME = himmel
 
-all: init
+CFLAGS = -Wall -O3
 
-init: init.o mount.o crysco.o bstrlib/bstrlib.o hosts/himmel.o
+all: host init
+
+host:
+	./host.sh $(HOSTNAME)
+
+init: host.o init.o datatypes.o mount.o crysco.o bstrlib/bstrlib.o
 	$(CC) $(CFLAGS) -static -o $@ $^
+	strip $@
 
 # = Generic Utility Definitions =
 
@@ -14,5 +20,7 @@ init: init.o mount.o crysco.o bstrlib/bstrlib.o hosts/himmel.o
 
 clean:
 	find -name "*.o" -exec rm {} \;
+	rm host.h
+	rm host.c
 	rm init
 

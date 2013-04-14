@@ -5,6 +5,8 @@
 
 #include "bstrlib/bstrlib.h"
 
+#include "host.h"
+
 #ifndef HOSTNAME_H
 #error "No hostname specified!"
 #endif /* HOSTNAME */
