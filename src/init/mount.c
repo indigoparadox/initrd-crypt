@@ -39,31 +39,31 @@ int mount_mds( void ) {
    int i_md_iter,
       i_dev_iter,
       i_md_count;
-   MD_ARRAY* md_arrays;
+   MD_ARRAY* ap_md_arrays;
    
-   i_md_count = get_md_arrays( &md_arrays );
+   i_md_count = get_md_arrays( &ap_md_arrays );
 
    /* Iterate through the host-specific data structure and create md arrays.  */
    for( i_md_iter = 0 ; i_md_count > i_md_iter ; i_md_iter++ ) {
-      /* printf( "%s\n", bdata( md_arrays[i_md_iter].name ) ); */
+      /* printf( "%s\n", bdata( ap_md_arrays[i_md_iter].name ) ); */
       for(
          i_dev_iter = 0 ;
-         md_arrays[i_md_iter].devs->qty > i_dev_iter ;
+         ap_md_arrays[i_md_iter].devs->qty > i_dev_iter ;
          i_dev_iter++
       ) {
          /* FIXME: Actually perform array creation. */
          /* printf(
-            "%s\n", bdata( md_arrays[i_md_iter].devs->entry[i_dev_iter] )
+            "%s\n", bdata( ap_md_arrays[i_md_iter].devs->entry[i_dev_iter] )
          ); */
       }
    }
 
    /* Perform cleanup, destroy the information structure. */
    for( i_md_iter = 0 ; i_md_count > i_md_iter ; i_md_iter++ ) {
-      bstrListDestroy( md_arrays[i_md_iter].devs );
-      bdestroy( md_arrays[i_md_iter].name );
+      bstrListDestroy( ap_md_arrays[i_md_iter].devs );
+      bdestroy( ap_md_arrays[i_md_iter].name );
    }
-   free( md_arrays );
+   free( ap_md_arrays );
 
    /* FIXME: Abort if there's a problem creating arrays. */
    return 0;

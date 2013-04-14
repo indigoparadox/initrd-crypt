@@ -1,7 +1,72 @@
 
 #include "crysco.h"
 
-int prompt_decrypt( void ) {
+int attempt_decrypt( char* pc_key_in ) {
+   int i_lvol_iter,
+      i_lvol_count;
+   LVOL* ap_lvols;
+
+   i_lvol_count = get_lvols( &ap_lvols );
+
+   for( i_lvol_iter = 0 ; i_lvol_count > i_lvol_iter ; i_lvol_iter++ ) {
+      /* FIXME: Actually attempt decryption. */
+      /* printf( "%s", bdata( ap_lvols[i_lvol_iter].name ) ); */
+   }
+
+   /* Perform cleanup, destroy the information structure. */
+   for( i_lvol_iter = 0 ; i_lvol_count > i_lvol_iter ; i_lvol_iter++ ) {
+      bdestroy( ap_lvols[i_lvol_iter].name );
+      bdestroy( ap_lvols[i_lvol_iter].dev );
+      free( ap_lvols );
+   }
+
+   /* FIXME */
    return -1;
+}
+
+int prompt_decrypt( void ) {
+   char* pc_key_buffer,
+      c_char;
+   int i_key_buffer_size = 1,
+      i_key_index = 0,
+      i_key_attempts = 0;
+   struct termios oldterm,
+      newterm;
+   BOOL b_decrypt_success = FALSE;
+   
+   /* Disable local echo. */
+   tcgetattr( fileno( stdin ), &oldterm );
+   newterm = oldterm;
+   newterm.c_lflag &= ~ECHO;
+   tcsetattr( fileno( stdin ), TCSANOW, &newterm );
+
+   while( HOST_MAX_ATTEMPTS > i_key_attempts ) {
+
+      /* Get a password from stdin. */
+      pc_key_buffer = calloc( i_key_buffer_size, sizeof( char ) );
+      printf( "Insufficient data.\n" );
+      while( (c_char = getchar()) ) {
+         if( '\n' == c_char ) {
+            /* Quit on newline. */
+            break;
+         }
+
+         pc_key_buffer[i_key_index] = c_char;
+         i_key_index++;
+         i_key_buffer_size++;
+         pc_key_buffer = realloc( pc_key_buffer, i_key_buffer_size );
+      }
+
+      printf( "%s\n", pc_key_buffer );
+
+      attempt_decrypt( pc_key_buffer );
+
+      /* Iteration cleanup. */
+      free( pc_key_buffer );
+
+      i_key_attempts++;
+   }
+
+   return !b_decrypt_success;
 }
 

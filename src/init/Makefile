@@ -12,7 +12,7 @@ host:
 	./host.sh $(HOSTNAME)
 
 init: host.o init.o datatypes.o mount.o crysco.o bstrlib/bstrlib.o
-	$(CC) $(LDFLAGS) -o $@ $^
+	$(CC) -o $@ $^ $(LDFLAGS)
 
 release: host init
 	strip init

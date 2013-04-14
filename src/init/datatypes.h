@@ -11,6 +11,11 @@ typedef struct {
    struct bstrList* devs;
 } MD_ARRAY;
 
+typedef struct {
+   bstring name;
+   bstring dev;
+} LVOL;
+
 #ifndef BOOL
 typedef int BOOL;
 #ifndef TRUE
