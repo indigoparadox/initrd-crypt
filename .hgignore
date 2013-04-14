@@ -1,2 +1,3 @@
 glob:*.o
 glob:usr/src/init/init
+glob:usr/src/init/hosts
