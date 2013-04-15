@@ -11,6 +11,8 @@
 
 #include "host.h"
 
+/* = Function Prototypes = */
+
 int mount_sys( BOOL b_umount_in );
 int mount_mds( void );
 int mount_probe_root( void );

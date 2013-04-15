@@ -10,6 +10,8 @@
 #include "host.h"
 #include "mount.h"
 
+/* = Function Prototypes = */
+
 int attempt_decrypt( char* );
 int prompt_decrypt( void );
 
