@@ -104,7 +104,7 @@ int mount_probe_root( void ) {
    int i_retval = 0;
 
    if( regcomp( &s_regex, ".*\\-root", 0 ) ) {
-      perror( "Unable to compile root search regex" );
+      perror( "Unable to compile root search" );
    }
 
    /* Try to find an appropriate root device. */
