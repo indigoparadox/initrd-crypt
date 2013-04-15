@@ -1,20 +1,13 @@
 
-#HOSTNAME = `hostname`
-HOSTNAME = himmel
-
 CFLAGS = -Wall -O3
 LDFLAGS = -static
 
-all: host init
-
-host:
-	# TODO: Have autoconf do this, or something.
-	./host.sh $(HOSTNAME)
+all: init
 
 init: host.o init.o datatypes.o mount.o crysco.o bstrlib/bstrlib.o
 	$(CC) -o $@ $^ $(LDFLAGS)
 
-release: host init
+release: init
 	strip init
 
 # = Generic Utility Definitions =
@@ -24,7 +17,7 @@ release: host init
 
 clean:
 	find -name "*.o" -exec rm {} \;
-	#rm host.h
-	#rm host.c
+	rm host.h
+	rm host.c
 	rm init
 
