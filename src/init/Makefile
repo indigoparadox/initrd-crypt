@@ -1,5 +1,5 @@
 
-CFLAGS = -g -Wall -O3
+CFLAGS = -Wall -O3
 LDFLAGS = -static
 
 all: init

@@ -212,6 +212,8 @@ def compile_init( host_path, hostname, release=False ):
       command = ['make']
       if release:
          command += ['release']
+      else:
+         command += ['CFLAGS=-g -Wall -O3']
       subprocess.check_call( command )
       os.chdir( current_path )
       try:
