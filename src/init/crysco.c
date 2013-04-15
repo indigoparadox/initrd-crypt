@@ -22,8 +22,12 @@ int attempt_decrypt( char* pc_key_in ) {
       free( ap_lvols );
    }
 
-   /* FIXME */
-   return -1;
+   /* See if decryption was successful. */
+   if( mount_probe_root() ) {
+      return 1;
+   }
+
+   return 0;
 }
 
 /* Purpose: Prompt for keys for attempts up to HOST_MAX_ATTEMPTS and call the *

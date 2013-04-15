@@ -8,6 +8,7 @@
 #include <termios.h>
 
 #include "host.h"
+#include "mount.h"
 
 int attempt_decrypt( char* );
 int prompt_decrypt( void );
