@@ -12,13 +12,13 @@ int attempt_decrypt( char* pc_key_in ) {
 
    for( i_lvol_iter = 0 ; i_lvol_count > i_lvol_iter ; i_lvol_iter++ ) {
       /* FIXME: Actually attempt decryption. */
-      /* printf( "%s", bdata( ap_lvols[i_lvol_iter].name ) ); */
+      /* printf( "%s", ap_lvols[i_lvol_iter].name ); */
    }
 
    /* Perform cleanup, destroy the information structure. */
    for( i_lvol_iter = 0 ; i_lvol_count > i_lvol_iter ; i_lvol_iter++ ) {
-      bdestroy( ap_lvols[i_lvol_iter].name );
-      bdestroy( ap_lvols[i_lvol_iter].dev );
+      free( ap_lvols[i_lvol_iter].name );
+      free( ap_lvols[i_lvol_iter].dev );
       free( ap_lvols );
    }
 

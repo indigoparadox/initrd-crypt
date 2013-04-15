@@ -2,8 +2,6 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#include "bstrlib/bstrlib.h"
-
 #include "host.h"
 
 #ifndef HOSTNAME_H

@@ -66,20 +66,27 @@ int mount_mds( void ) {
       /* printf( "%s\n", bdata( ap_md_arrays[i_md_iter].name ) ); */
       for(
          i_dev_iter = 0 ;
-         ap_md_arrays[i_md_iter].devs->qty > i_dev_iter ;
+         ap_md_arrays[i_md_iter].devs_count > i_dev_iter ;
          i_dev_iter++
       ) {
          /* FIXME: Actually perform array creation. */
          /* printf(
-            "%s\n", bdata( ap_md_arrays[i_md_iter].devs->entry[i_dev_iter] )
+            "%s\n", ap_md_arrays[i_md_iter].devs[i_dev_iter]
          ); */
       }
    }
 
    /* Perform cleanup, destroy the information structure. */
    for( i_md_iter = 0 ; i_md_count > i_md_iter ; i_md_iter++ ) {
-      bstrListDestroy( ap_md_arrays[i_md_iter].devs );
-      bdestroy( ap_md_arrays[i_md_iter].name );
+      for(
+         i_dev_iter = 0 ;
+         ap_md_arrays[i_md_iter].devs_count > i_dev_iter ;
+         i_dev_iter++
+      ) {
+         free( ap_md_arrays[i_md_iter].devs[i_dev_iter] );
+      }
+      free( ap_md_arrays[i_md_iter].name );
+      free( ap_md_arrays[i_md_iter].devs );
    }
    free( ap_md_arrays );
 
@@ -93,7 +100,7 @@ int mount_probe_root( void ) {
    DIR* p_dev_dir;
    struct dirent* p_dev_entry;
    regex_t s_regex;
-   bstring b_root_dev = NULL;
+   //bstring b_root_dev = NULL;
    int i_retval = 0;
 
    if( regcomp( &s_regex, ".*\\-root", 0 ) ) {
@@ -106,7 +113,7 @@ int mount_probe_root( void ) {
       while( (p_dev_entry = readdir( p_dev_dir )) ) {
          if( !regexec( &s_regex, p_dev_entry->d_name, 0, NULL, 0 ) ) {
             //printf( "%s\n", p_dev_entry->d_name );
-            b_root_dev = bformat( "/dev/mapper/%s", p_dev_entry->d_name );
+            //b_root_dev = bformat( "/dev/mapper/%s", p_dev_entry->d_name );
             break;
          }
       }
@@ -117,20 +124,20 @@ int mount_probe_root( void ) {
       goto mpr_cleanup;
    }
 
-   printf( "%s\n", bdata( b_root_dev ) );
+   /* printf( "%s\n", bdata( b_root_dev ) ); */
 
    /* Attempt to mount the selected root device. */
-   if( mount( bdata( b_root_dev ), "/mnt/root", "ext3", MS_RDONLY, "" ) ) {
-      perror( "Unable to mount root device" );
-      i_retval = 1;
-      goto mpr_cleanup;
-   }
+   //if( mount( bdata( b_root_dev ), "/mnt/root", "ext3", MS_RDONLY, "" ) ) {
+   //   perror( "Unable to mount root device" );
+   //   i_retval = 1;
+   //   goto mpr_cleanup;
+   //}
 
 mpr_cleanup:
 
    /* Cleanup. */
    regfree( &s_regex );
-   bdestroy( b_root_dev );
+   //bdestroy( b_root_dev );
 
    return i_retval;
 }

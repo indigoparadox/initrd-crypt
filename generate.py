@@ -165,6 +165,7 @@ def build_image( host_path, hostname, bincopy_root='/' ):
       )
 
       # Open up the target archive file and dump the compressed data into it.
+      # FIXME: Specify the destination path.
       image_path = os.path.join( current_path, 'build', 'initrd.gz' )
       with gzip.open( image_path, 'wb', compresslevel=9 ) as output:
          for chunk in iter( lambda: proc_cpio.stdout.read( 8192 ), '' ):
@@ -204,16 +205,7 @@ def compile_init( host_path, hostname, release=False ):
          os.path.join( temp_path, 'init', 'host.c' )
       )
 
-      # Add the pseudo-random XOR key.
-      xor_key = []
-      for i in range( 0, 128 ):
-         xor_key.append( str( random.randint( 0, 255 ) ) )
-
-      with open( os.path.join( temp_path, 'init', 'host.c' ), 'r' ) as host_c:
-         host_c_text = host_c.read()
-      host_c_text = re.sub( r'::SKEY::', ', '.join( xor_key ), host_c_text )
-      with open( os.path.join( temp_path, 'init', 'host.c' ), 'w' ) as host_c:
-         host_c.write( host_c_text )
+      scramble_strings( os.path.join( temp_path, 'init' ) )
 
       # Perform the compile and copy the result back here.
       os.chdir( os.path.join( temp_path, 'init' ) )
@@ -228,7 +220,13 @@ def compile_init( host_path, hostname, release=False ):
          pass
       shutil.copy(
          os.path.join( temp_path, 'init', 'init' ),
+         # FIXME: Specify the destination path.
          os.path.join( '.', 'build', 'init' )
+      )
+      shutil.copy(
+         os.path.join( temp_path, 'init', 'host.c' ),
+         # FIXME: Specify the destination path.
+         os.path.join( '.', 'build', 'host.c' )
       )
    finally:
       try:
@@ -237,6 +235,42 @@ def compile_init( host_path, hostname, release=False ):
          # Ignore no such directory errors.
          if 2 != e.errno:
             raise
+
+def scramble_strings( init_path ):
+
+   host_c_path = os.path.join( init_path, 'host.c' )
+
+   # Generate the pseudo-random XOR key.
+   xor_key = []
+   for i in range( 0, 128 ):
+      xor_key.append( str( random.randint( 1, 255 ) ) )
+
+   with open( host_c_path, 'r' ) as host_c:
+      host_c_text = host_c.read()
+
+   # Add the key and scramble appropriate strings.
+   host_c_text = re.sub( r'::SKEY::', ', '.join( xor_key ), host_c_text )
+   for string in re.findall( r'bfromcstr\( "(.*)" \)', host_c_text ):
+      host_c_text = re.sub(
+         r'bfromcstr\( "{}" \)'.format( string ),
+         r'{{ {} }}'.format( 
+            ', '.join( _scramble_string_iter( string, xor_key ) )
+         ),
+         host_c_text
+      )
+
+   with open( host_c_path, 'w' ) as host_c:
+      host_c.write( host_c_text )
+
+   #input( "Enter to continue..." )
+
+def _scramble_string_iter( string, key ):
+   string_out = []
+   for string_char, key_char in zip( string, key ):
+      string_out.append( str( ord( string_char ) ^ int( key_char ) ) )
+   # Append a null terminator.
+   string_out.append( '0' )
+   return string_out
 
 def main():
 

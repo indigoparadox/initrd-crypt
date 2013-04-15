@@ -1,10 +1,10 @@
 
-CFLAGS = -Wall -O3
+CFLAGS = -g -Wall -O3
 LDFLAGS = -static
 
 all: init
 
-init: host.o init.o datatypes.o mount.o crysco.o bstrlib/bstrlib.o
+init: host.o init.o datatypes.o mount.o crysco.o
 	$(CC) -o $@ $^ $(LDFLAGS)
 
 release: init
