@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <regex.h>
+#include <signal.h>
 
 #include "host.h"
 
@@ -37,6 +38,52 @@ int action_console( void ) {
 }
 #endif /* CONSOLE */
 
+/* Purpose: Tidy up the system and prepare/enact the "real" boot process.     *
+ *          This should only be called from init/pid 1.                       */
+int cleanup_system( int i_retval_in ) {
+   #ifdef NET
+   /* TODO: Try to stop network. */
+   /* killall dropbear 2>/dev/null
+   for DEV_ITER in `/bin/cat /proc/net/dev | /bin/awk '{print $1}' | \
+      /bin/grep ":$" | /bin/sed s/.$//`
+   do
+      ifconfig $DEV_ITER down 2>/dev/null
+   done */
+   #endif /* NET */
+
+   /* Prepare the system to load the "real" init. */
+   if( !i_retval_in ) {
+      i_retval_in = mount_probe_usr();
+   }
+   if( !i_retval_in ) {
+      i_retval_in = mount_sys( FALSE );
+   }
+
+   /* FIXME: Execute switchroot on success, reboot on failure. */
+   if( !i_retval_in ) {
+      /* Switchroot */
+   } else {
+      /* Reboot */
+   }
+
+   return i_retval_in;
+}
+
+void signal_handler( int i_signum_in ) {
+   if( SIGTERM == i_signum_in && 1 == getpid()  ) {
+      /* A successful decryption occurred on a remote terminal, so shut       *
+       * everything down.                                                     */
+      cleanup_system( 0 );
+   } else if( SIGTERM != i_signum_in ) {
+      switch( i_signum_in ) {
+         case SIGQUIT:
+         case SIGINT:
+            /* Do nothing. */
+            break;
+      }
+   }
+}
+
 int main( int argc, char* argv[] ) {
    regex_t s_regex;
    int i,
@@ -48,6 +95,11 @@ int main( int argc, char* argv[] ) {
       ac_cmdline[CMDLINE_MAX_SIZE] = { '\0' };
    regmatch_t pmatch[2];
    FILE* pf_cmdline = NULL;
+
+   /* Protect ourselves against simple potential bypasses. */
+   signal( SIGTERM, signal_handler );
+   signal( SIGINT, signal_handler );
+   signal( SIGQUIT, signal_handler );
 
    if( 1 == getpid() ) {
       /* We're being called as init, so set the system up. */
@@ -70,7 +122,9 @@ int main( int argc, char* argv[] ) {
       if( !strncmp( "-p", argv[i], 2 ) ) {
          /* Just prompt to decrypt and exit (signaling main process to clean  *
           * up if decrypt is successful!)                                     */
-         if( prompt_decrypt() ) {
+         i_retval = prompt_decrypt();
+         if( !i_retval ) {
+            kill( 1, SIGUSR1 );
          }
          goto main_cleanup;
       }
@@ -133,30 +187,6 @@ int main( int argc, char* argv[] ) {
    }
 
 main_cleanup:
-   if( 1 == getpid() ) {
-      #ifdef NET
-      /* TODO: Try to stop network. */
-      /* killall dropbear 2>/dev/null
-      for DEV_ITER in `/bin/cat /proc/net/dev | /bin/awk '{print $1}' | \
-         /bin/grep ":$" | /bin/sed s/.$//`
-      do
-         ifconfig $DEV_ITER down 2>/dev/null
-      done */
-      #endif /* NET */
-
-      /* Prepare the system to load the "real" init. */
-      if( !i_retval ) {
-         i_retval = mount_probe_usr();
-      }
-      if( !i_retval ) {
-         i_retval = mount_sys( FALSE );
-      }
-
-      /* FIXME: Execute switchroot. */
-      if( !i_retval ) {
-      }
-   }
-
    if( NULL != pc_action_crypt ) {
       free( pc_action_crypt );
    }
@@ -165,6 +195,10 @@ main_cleanup:
       free( pc_action_console );
    }
    #endif /* CONSOLE */
+
+   if( 1 == getpid() ) {
+      i_retval = cleanup_system( i_retval );
+   }
 
    return i_retval;
 }

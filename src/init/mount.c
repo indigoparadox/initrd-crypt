@@ -93,6 +93,21 @@ int mount_mds( void ) {
    return i_retval;
 }
 
+/* Purpose: Attempt to mount boot filesystem.                                 */
+/* Return: 0 on success, 1 on failure.                                        */
+int mount_probe_boot( void ) {
+   /* TODO: Implement /mnt/boot probing for loopback/squashfs mounting. */
+   /* BLOCK_PROBE_FOUND=0
+   for BLK_PROBE_ITER in `ls -1 /dev/sd*`; do
+      /bin/mount -o ro "$BLK_PROBE_ITER" /mnt/boot 2>/dev/null
+      if [ -f "$1" ]; then
+         BLOCK_PROBE_FOUND=1
+      fi
+   done */
+
+   return -1;
+}
+
 /* Purpose: Attempt to mount root filesystem.                                 */
 /* Return: 0 on success, 1 on failure.                                        */
 int mount_probe_root( void ) {
