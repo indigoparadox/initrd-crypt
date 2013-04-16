@@ -14,32 +14,9 @@ int attempt_decrypt( char* pc_key_in ) {
    LVOL* ap_lvols;
 
    i_lvol_count = host_lvols( &ap_lvols );
-   i_cryptsetup_argc =
-      command_crypstsetup( &ppc_cryptsetup_argv );
+   i_cryptsetup_argc = command_cryptsetup( &ppc_cryptsetup_argv );
 
    for( i = 0 ; i_lvol_count > i ; i++ ) {
-      /* FIXME: Actually attempt decryption. */
-      /* printf( "%s", ap_lvols[i_lvol_iter].name ); */
-
-      /* # Try to mount the disks given the entered password.
-      for BLK_MNT_ITER in `/bin/grep "^M_LK" "/etc/cryscry.cfg"`; do
-         DEV_ITER="`echo "$BLK_MNT_ITER" | /bin/awk -F'=' '{print $2}'`"
-         MAP_ITER="`echo "$BLK_MNT_ITER" | /bin/awk -F'=' '{print $3}'`"
-         echo "$P" | /sbin/cryptsetup luksOpen "$DEV_ITER" "$MAP_ITER"
-
-         #if [ 0 = $? ] && [ 1 = $CFG_VERBOSE ]; then
-         #   echo "Success."
-         #elif [ 0 = $? ] && [ 1 = $CFG_VERBOSE ]; then
-         #   echo "Failure."
-
-         if [ 0 -ne $? ]; then
-            # If even one device can't be unlocked then try again.
-            PP_ATTEMPTS=$(( $PP_ATTEMPTS+1 ))
-            PP_ATTEMPT_GOOD=0
-            break
-         fi
-      done */
-
       /* Setup a pipe to send commands to the child. */
       if( pipe( ai_cryptsetup_stdin ) ) {
          #ifdef ERRORS
@@ -66,7 +43,8 @@ int attempt_decrypt( char* pc_key_in ) {
 
          close( ai_cryptsetup_stdin[0] );
 
-         /* Wait until we get SIGTERM or the child dies. */
+         /* FIXME: Pipe the password into cryptsetup. */
+
          wait( NULL );
       }
    }
@@ -81,11 +59,8 @@ ad_cleanup:
 
    /* Perform cleanup, destroy the information structure. */
    HOST_FREE_LVOLS( ap_lvols );
-
-   i = 0;
-   while( NULL != ppc_cryptsetup_argv[i] ) {
+   for( i = 0 ; i_cryptsetup_argc > i ; i++ ) {
       free( ppc_cryptsetup_argv[i] );
-      i++;
    }
    free( ppc_cryptsetup_argv );
 

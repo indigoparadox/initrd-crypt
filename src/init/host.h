@@ -40,10 +40,10 @@
    *lvols = calloc( HOST_LVOL_COUNT, sizeof( LVOL ) ); \
    for( i = 0 ; host_lvol_count() > i ; i++ ) { \
       (*lvols)[i].name = descramble_create_string( \
-         aac_lvol_names[i][1], gi_skey \
+         aac_lvol_names[i][0], gi_skey \
       ); \
       (*lvols)[i].dev = descramble_create_string( \
-         aac_lvol_names[i][0], gi_skey \
+         aac_lvol_names[i][1], gi_skey \
       ); \
    }
 
