@@ -14,7 +14,9 @@
 /* Purpose: Wait until the main devices are decrypted and start the system.   */
 int action_crypt( void ) {
 
-   /* FIXME: Try to start network listener. */
+   #ifdef NET
+   /* TODO: Try to start network listener. */
+   #endif /* NET */
 
    /* Get the user password. */
    prompt_decrypt();

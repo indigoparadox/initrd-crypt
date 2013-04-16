@@ -183,7 +183,7 @@ def build_image( host_path, hostname, bincopy_root='/' ):
          if 2 != e.errno:
             raise
 
-def compile_init( host_path, hostname, release=False ):
+def compile_init( host_path, hostname, release=False, errors=False, net=False ):
    try:
       my_logger = logging.getLogger( 'initrd.compile' )
       temp_path = tempfile.mkdtemp()
@@ -228,10 +228,22 @@ def compile_init( host_path, hostname, release=False ):
       # Perform the compile and copy the result back here.
       os.chdir( os.path.join( temp_path, 'init' ) )
       command = ['make']
+
+      # Add options to build command.
+      cflags = ['CFLAGS=-Wall -O3']
       if release:
          command += ['release']
       else:
-         command += ['CFLAGS=-g -Wall -O3']
+         cflags += ['-g']
+
+      if errors:
+         cflags += ['-DERRORS']
+
+      if net:
+         cflags += ['-DNET']
+
+      command += [' '.join( cflags )]
+
       try:
          subprocess.check_call( command )
       except:
@@ -299,6 +311,14 @@ def main():
       help='Only compile the C init; don\'t build the whole initrd.'
    )
    parser.add_argument(
+      '-e', '--errors', action='store_true', dest='errors',
+      help='Build an init that will show meaningful errors.'
+   )
+   parser.add_argument(
+      '-i', '--internet', action='store_true', dest='internet',
+      help='Build an init with Internet support.'
+   )
+   parser.add_argument(
       '-m', '--modules-path', action='store', dest='modules_path', type=str,
       help='Specify the path to kernel modules root to include.'
    )
@@ -319,7 +339,10 @@ def main():
    random.seed()
 
    my_logger.info( 'Compiling init...' )
-   compile_init( args.host_path, args.hostname, release=not args.compile_only )
+   compile_init(
+      args.host_path, args.hostname, release=not args.compile_only,
+      errors=args.errors, net=args.internet
+   )
 
    if not args.compile_only:
       my_logger.info( 'Building image...' )
