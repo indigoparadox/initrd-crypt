@@ -1,6 +1,4 @@
 glob:*.o
 glob:src/init/init
-glob:src/init/hosts
-glob:src/init/host.h
 glob:src/init/host.c
 glob:build

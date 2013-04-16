@@ -56,10 +56,11 @@ ms_cleanup:
 int mount_mds( void ) {
    int i_md_iter,
       i_dev_iter,
-      i_md_count;
+      i_md_count,
+      i, j;
    MD_ARRAY* ap_md_arrays;
    
-   i_md_count = get_md_arrays( &ap_md_arrays );
+   i_md_count = host_md_arrays( &ap_md_arrays );
 
    /* Iterate through the host-specific data structure and create md arrays.  */
    for( i_md_iter = 0 ; i_md_count > i_md_iter ; i_md_iter++ ) {
@@ -77,18 +78,7 @@ int mount_mds( void ) {
    }
 
    /* Perform cleanup, destroy the information structure. */
-   for( i_md_iter = 0 ; i_md_count > i_md_iter ; i_md_iter++ ) {
-      for(
-         i_dev_iter = 0 ;
-         ap_md_arrays[i_md_iter].devs_count > i_dev_iter ;
-         i_dev_iter++
-      ) {
-         free( ap_md_arrays[i_md_iter].devs[i_dev_iter] );
-      }
-      free( ap_md_arrays[i_md_iter].name );
-      free( ap_md_arrays[i_md_iter].devs );
-   }
-   free( ap_md_arrays );
+   HOST_FREE_MD_ARRAYS( ap_md_arrays );
 
    /* FIXME: Abort if there's a problem creating arrays. */
    return 0;
@@ -102,6 +92,7 @@ int mount_probe_root( void ) {
    regex_t s_regex;
    //bstring b_root_dev = NULL;
    int i_retval = 0;
+   char* pc_root_dev = NULL;
 
    if( regcomp( &s_regex, ".*\\-root", 0 ) ) {
       perror( "Unable to compile root search" );
@@ -112,6 +103,10 @@ int mount_probe_root( void ) {
    if( NULL != p_dev_dir ) {
       while( (p_dev_entry = readdir( p_dev_dir )) ) {
          if( !regexec( &s_regex, p_dev_entry->d_name, 0, NULL, 0 ) ) {
+            /* Create the root dev string. */
+            // XXX
+            //sprintf( pc_root_dev, 
+
             //printf( "%s\n", p_dev_entry->d_name );
             //b_root_dev = bformat( "/dev/mapper/%s", p_dev_entry->d_name );
             break;

@@ -197,15 +197,17 @@ def compile_init( host_path, hostname, release=False ):
 
       # Copy the host-specific code.
       shutil.copy(
-         os.path.join( host_path, '{}.h'.format( hostname ) ),
-         os.path.join( temp_path, 'init', 'host.h' )
-      )
-      shutil.copy(
          os.path.join( host_path, '{}.c'.format( hostname ) ),
          os.path.join( temp_path, 'init', 'host.c' )
       )
 
       scramble_strings( os.path.join( temp_path, 'init' ) )
+
+      shutil.copy(
+         os.path.join( temp_path, 'init', 'host.c' ),
+         # FIXME: Specify the destination path.
+         os.path.join( '.', 'build', 'host.c' )
+      )
 
       # Perform the compile and copy the result back here.
       os.chdir( os.path.join( temp_path, 'init' ) )
@@ -224,11 +226,6 @@ def compile_init( host_path, hostname, release=False ):
          os.path.join( temp_path, 'init', 'init' ),
          # FIXME: Specify the destination path.
          os.path.join( '.', 'build', 'init' )
-      )
-      shutil.copy(
-         os.path.join( temp_path, 'init', 'host.c' ),
-         # FIXME: Specify the destination path.
-         os.path.join( '.', 'build', 'host.c' )
       )
    finally:
       try:
