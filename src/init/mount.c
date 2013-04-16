@@ -90,13 +90,19 @@ int mount_probe_root( void ) {
    DIR* p_dev_dir;
    struct dirent* p_dev_entry;
    regex_t s_regex;
-   //bstring b_root_dev = NULL;
    int i_retval = 0;
-   char* pc_root_dev = NULL;
+   char* pc_root_dev = NULL,
+      * pc_mapper_path = NULL,
+      * pc_root_mountpoint = NULL;
 
+   /* Initialize strings, etc. */
    if( regcomp( &s_regex, ".*\\-root", 0 ) ) {
       perror( "Unable to compile root search" );
+      goto mpr_cleanup;
    }
+
+   pc_mapper_path = host_mapper_path();
+   pc_root_mountpoint = host_root_mountpoint();
 
    /* Try to find an appropriate root device. */
    p_dev_dir = opendir( "/dev/mapper" );
@@ -104,11 +110,11 @@ int mount_probe_root( void ) {
       while( (p_dev_entry = readdir( p_dev_dir )) ) {
          if( !regexec( &s_regex, p_dev_entry->d_name, 0, NULL, 0 ) ) {
             /* Create the root dev string. */
-            // XXX
-            //sprintf( pc_root_dev, 
-
-            //printf( "%s\n", p_dev_entry->d_name );
-            //b_root_dev = bformat( "/dev/mapper/%s", p_dev_entry->d_name );
+            pc_root_dev = calloc(
+               strlen( pc_mapper_path ) + strlen( p_dev_entry->d_name ),
+               sizeof( char )
+            );
+            sprintf( pc_root_dev, pc_mapper_path, p_dev_entry->d_name );
             break;
          }
       }
@@ -119,20 +125,20 @@ int mount_probe_root( void ) {
       goto mpr_cleanup;
    }
 
-   /* printf( "%s\n", bdata( b_root_dev ) ); */
-
    /* Attempt to mount the selected root device. */
-   //if( mount( bdata( b_root_dev ), "/mnt/root", "ext3", MS_RDONLY, "" ) ) {
-   //   perror( "Unable to mount root device" );
-   //   i_retval = 1;
-   //   goto mpr_cleanup;
-   //}
+   if( mount( pc_root_dev, pc_root_mountpoint, "ext3", MS_RDONLY, "" ) ) {
+      perror( "Unable to mount root device" );
+      i_retval = 1;
+      goto mpr_cleanup;
+   }
 
 mpr_cleanup:
 
    /* Cleanup. */
    regfree( &s_regex );
-   //bdestroy( b_root_dev );
+   free( pc_root_dev );
+   free( pc_mapper_path );
+   free( pc_root_mountpoint );
 
    return i_retval;
 }

@@ -34,11 +34,16 @@
 
 /* = Function Prototypes = */
 
+int host_md_count( void );
+int host_md_devs_per( void );
 int host_md_arrays( MD_ARRAY** );
 int host_lvols( LVOL** );
 int host_max_attempts( void );
-int host_md_count( void );
-int host_md_devs_per( void );
+char* host_mapper_path( void );
+char* host_root_mountpoint( void );
+char* host_net_ipv4_if( void );
+char* host_net_ipv4_ip( void );
+char* host_ssh_port( void );
 
 #endif /* HOSTNAME_H */
 
