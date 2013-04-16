@@ -44,7 +44,8 @@ int attempt_decrypt( char* pc_key_in ) {
          close( ai_cryptsetup_stdin[0] );
 
          /* Pipe the password into cryptsetup. */
-         if( write( ai_cryptsetup_stdin[1], pc_key_in, strlen( pc_key_in ) ) ) {
+         /* XXX: Should there be a !? Does write() return 0 on fail? */
+         if( !write( ai_cryptsetup_stdin[1], pc_key_in, strlen( pc_key_in ) ) ) {
             #ifdef ERRORS
             perror( "Unable to communicate with cryptsetup" );
             #endif /* ERRORS */

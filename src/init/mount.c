@@ -107,8 +107,9 @@ int mount_probe_root( void ) {
    /* Initialize strings, etc. */
    if( regcomp( &s_regex, ".*\\-root", 0 ) ) {
       #ifdef ERRORS
-      perror( "Unable to compile root search" );
+      perror( "Unable to compile root regex" );
       #endif /* ERRORS */
+      i_retval = ERROR_RETVAL_REGEX_FAIL;
       goto mpr_cleanup;
    }
 

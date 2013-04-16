@@ -48,6 +48,18 @@ int command_switchroot( char*** pppc_argv_in ) {
    return SWITCHROOT_ARGV_COUNT;
 }
 
+char* config_action_crypt( void ) {
+   char ac_action_crypt[] = bfromcstr( "crypt" );
+   return descramble_create_string( ac_action_crypt, gi_skey );
+}
+
+#ifdef CONSOLE
+char* config_action_console( void ) {
+   char ac_action_console[] = bfromcstr( "console" );
+   return descramble_create_string( ac_action_console, gi_skey );
+}
+#endif /* CONSOLE */
+
 char* config_mapper_path( void ) {
    char ac_mapper_path[] = bfromcstr( "/dev/mapper/%s" );
    return descramble_create_string( ac_mapper_path, gi_skey );
