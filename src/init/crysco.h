@@ -9,6 +9,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <wait.h>
+#include <libcryptsetup.h>
 
 #include "host.h"
 #include "mount.h"

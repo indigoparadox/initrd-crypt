@@ -1,6 +1,6 @@
 
 CFLAGS = -Wall -O3
-LDFLAGS = -static
+LDFLAGS = -static -lcryptsetup -ldevmapper -ludev -luuid -lgcrypt -lgpg-error -lrt
 
 all: init
 

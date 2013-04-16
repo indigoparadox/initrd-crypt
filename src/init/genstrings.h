@@ -7,7 +7,6 @@
 
 /* = Function Prototypes = */
 
-int command_cryptsetup( char*** );
 int command_switchroot( char*** );
 
 char* config_action_crypt( void );

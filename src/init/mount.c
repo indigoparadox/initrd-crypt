@@ -136,8 +136,6 @@ int mount_probe_root( void ) {
    p_dev_dir = opendir( "/dev/mapper" );
    if( NULL != p_dev_dir ) {
       while( (p_dev_entry = readdir( p_dev_dir )) ) {
-         /* XXX */
-         printf( "Dir: %s\n", p_dev_entry->d_name );
          if( !regexec( &s_regex, p_dev_entry->d_name, 0, NULL, 0 ) ) {
             /* Create the root dev string. */
             pc_root_dev = calloc(
