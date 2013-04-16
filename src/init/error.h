@@ -1,0 +1,11 @@
+
+#ifndef ERROR_H
+#define ERROR_H
+
+#define ERROR_RETVAL_ROOT_FAIL 1
+#define ERROR_RETVAL_MAPPER_FAIL 2
+#define ERROR_RETVAL_SYSFS_FAIL 4
+#define ERROR_RETVAL_LVM_FAIL 8
+
+#endif /* ERROR_H */
+

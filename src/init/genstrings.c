@@ -27,6 +27,27 @@ int command_cryptsetup( char*** pppc_argv_in ) {
    return CRYPTSETUP_ARGV_COUNT;
 }
 
+int command_switchroot( char*** pppc_argv_in ) {
+   int i;
+   #define SWITCHROOT_ARGV_COUNT 3
+   char aac_switchroot_argv[SWITCHROOT_ARGV_COUNT][20] = {
+      bfromcstr( "switch_root" ),
+      bfromcstr( "/mnt/root" ),
+      bfromcstr( "/sbin/init" ),
+   };
+
+   /* Add a null terminator (+1) to the end for execv(). */
+   *pppc_argv_in = calloc( SWITCHROOT_ARGV_COUNT + 1, sizeof( char* ) );
+   for( i = 0 ; SWITCHROOT_ARGV_COUNT > i ; i++ ) {
+      (*pppc_argv_in)[i] = descramble_create_string(
+         aac_switchroot_argv[i],
+         gi_skey
+      );
+   }
+
+   return SWITCHROOT_ARGV_COUNT;
+}
+
 char* config_mapper_path( void ) {
    char ac_mapper_path[] = bfromcstr( "/dev/mapper/%s" );
    return descramble_create_string( ac_mapper_path, gi_skey );

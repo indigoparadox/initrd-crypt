@@ -11,6 +11,7 @@
 
 #include "genstrings.h"
 #include "host.h"
+#include "error.h"
 
 /* = Function Prototypes = */
 

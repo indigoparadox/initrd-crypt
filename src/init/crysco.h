@@ -12,6 +12,7 @@
 
 #include "host.h"
 #include "mount.h"
+#include "error.h"
 
 /* = Function Prototypes = */
 

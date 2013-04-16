@@ -43,19 +43,24 @@ int attempt_decrypt( char* pc_key_in ) {
 
          close( ai_cryptsetup_stdin[0] );
 
-         /* FIXME: Pipe the password into cryptsetup. */
+         /* Pipe the password into cryptsetup. */
+         if( write( ai_cryptsetup_stdin[1], pc_key_in, strlen( pc_key_in ) ) ) {
+            #ifdef ERRORS
+            perror( "Unable to communicate with cryptsetup" );
+            #endif /* ERRORS */
+            goto ad_cleanup;
+         }
 
          wait( NULL );
       }
    }
 
    /* See if decryption was successful. */
-   if( mount_probe_root() ) {
-      i_retval = 1;
-      goto ad_cleanup;
-   }
+   i_retval = mount_probe_root();
 
 ad_cleanup:
+
+   /* TODO: Kill cryptsetup process if it's active? */
 
    /* Perform cleanup, destroy the information structure. */
    HOST_FREE_LVOLS( ap_lvols );
@@ -75,10 +80,10 @@ int prompt_decrypt( void ) {
       c_char;
    int i_key_buffer_size = 1,
       i_key_index = 0,
-      i_key_attempts = 0;
+      i_key_attempts = 0,
+      i_retval = 0;
    struct termios oldterm,
       newterm;
-   BOOL b_decrypt_success = FALSE;
    
    /* Disable local echo. */
    tcgetattr( fileno( stdin ), &oldterm );
@@ -92,25 +97,29 @@ int prompt_decrypt( void ) {
       pc_key_buffer = calloc( i_key_buffer_size, sizeof( char ) );
       printf( "Insufficient data.\n" );
       while( (c_char = getchar()) ) {
-         if( '\n' == c_char ) {
-            /* Quit on newline. */
-            break;
-         }
-
          pc_key_buffer[i_key_index] = c_char;
          i_key_index++;
          i_key_buffer_size++;
          pc_key_buffer = realloc( pc_key_buffer, i_key_buffer_size );
-      }
 
-      attempt_decrypt( pc_key_buffer );
+         if( '\n' == c_char ) {
+            /* Quit on newline, but after it's been added to the buffer. */
+            break;
+         }
+      }
 
       /* Iteration cleanup. */
       free( pc_key_buffer );
 
+      /* Perform the decryption, passing the resulting retval back. */
+      i_retval = attempt_decrypt( pc_key_buffer );
+      if( !i_retval ) {
+         break;
+      }
+
       i_key_attempts++;
    }
 
-   return !b_decrypt_success;
+   return i_retval;
 }
 

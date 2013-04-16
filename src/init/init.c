@@ -19,20 +19,23 @@ int action_crypt( void ) {
    #endif /* NET */
 
    /* Get the user password. */
-   prompt_decrypt();
-
-   /* FIXME: Return 0 on successful decrypt. */
-   return 0;
+   return prompt_decrypt();
 }
 
 int main( int argc, char* argv[] ) {
-   int i;
-   BOOL b_decrypt_success = FALSE;
+   int i,
+      i_retval = 0;
 
    if( 1 == getpid() ) {
       /* We're being called as init, so set the system up. */
-      mount_sys( FALSE );
-      mount_mds();
+      i_retval = mount_sys( FALSE );
+      if( i_retval ) {
+         goto main_cleanup;
+      }
+      i_retval = mount_mds();
+      if( i_retval ) {
+         goto main_cleanup;
+      }
 
       /* TODO: Load any directed kernel modules. */
 
@@ -44,24 +47,30 @@ int main( int argc, char* argv[] ) {
       if( !strncmp( "-p", argv[i], 2 ) ) {
          /* Just prompt to decrypt and exit (signaling main process to clean  *
           * up if decrypt is successful!)                                     */
-         if( !prompt_decrypt() ) {
+         if( prompt_decrypt() ) {
          }
          goto main_cleanup;
       }
    }
 
    /* Act based on the system imperative. */
-   b_decrypt_success = !action_crypt();
+   i_retval = action_crypt();
 
 main_cleanup:
    if( 1 == getpid() ) {
       /* Prepare the system to load the "real" init. */
-      if( b_decrypt_success ) {
-         mount_probe_usr();
+      if( !i_retval ) {
+         i_retval = mount_probe_usr();
       }
-      mount_sys( FALSE );
+      if( !i_retval ) {
+         i_retval = mount_sys( FALSE );
+      }
+
+      /* FIXME: Execute switchroot. */
+      if( !i_retval ) {
+      }
    }
 
-   return 0;
+   return i_retval;
 }
 

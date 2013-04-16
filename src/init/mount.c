@@ -16,7 +16,7 @@ int mount_sys( BOOL b_umount_in ) {
          #ifdef ERRORS
          perror( "Unable to unmount one or more special filesystems" );
          #endif /* ERRORS */
-         i_retval = 1;
+         i_retval = ERROR_RETVAL_SYSFS_FAIL;
          goto ms_cleanup;
       }
    } else {
@@ -24,7 +24,7 @@ int mount_sys( BOOL b_umount_in ) {
          #ifdef ERRORS
          perror( "Unable to mount one or more special filesystems" );
          #endif /* ERRORS */
-         i_retval = 1;
+         i_retval = ERROR_RETVAL_SYSFS_FAIL;
          goto ms_cleanup;
       }
 
@@ -38,7 +38,7 @@ int mount_sys( BOOL b_umount_in ) {
          #ifdef ERRORS
          perror( "Unable to mount one or more special filesystems" );
          #endif /* ERRORS */
-         i_retval = 1;
+         i_retval = ERROR_RETVAL_SYSFS_FAIL;
          goto ms_cleanup;
       } else {
          if(
@@ -48,7 +48,7 @@ int mount_sys( BOOL b_umount_in ) {
             #ifdef ERRORS
             perror( "Unable to start LVM" );
             #endif /* ERRORS */
-            i_retval = 1;
+            i_retval = ERROR_RETVAL_LVM_FAIL;
             goto ms_cleanup;
          }
       }
@@ -56,7 +56,7 @@ int mount_sys( BOOL b_umount_in ) {
 
 ms_cleanup:
 
-   return 0;
+   return i_retval;
 }
 
 /* Purpose: Setup /dev/md devices if any exist.                               */
@@ -65,6 +65,7 @@ int mount_mds( void ) {
    int i_md_iter,
       i_dev_iter,
       i_md_count,
+      i_retval = 0,
       i, j;
    MD_ARRAY* ap_md_arrays;
    
@@ -89,7 +90,7 @@ int mount_mds( void ) {
    HOST_FREE_MD_ARRAYS( ap_md_arrays );
 
    /* FIXME: Abort if there's a problem creating arrays. */
-   return 0;
+   return i_retval;
 }
 
 /* Purpose: Attempt to mount root filesystem.                                 */
@@ -133,7 +134,7 @@ int mount_probe_root( void ) {
       #ifdef ERRORS
       perror( "Unable to open /dev/mapper" );
       #endif /* ERRORS */
-      i_retval = 1;
+      i_retval = ERROR_RETVAL_MAPPER_FAIL;
       goto mpr_cleanup;
    }
 
@@ -142,7 +143,7 @@ int mount_probe_root( void ) {
       #ifdef ERRORS
       perror( "Unable to mount root device" );
       #endif /* ERRORS */
-      i_retval = 1;
+      i_retval = ERROR_RETVAL_ROOT_FAIL;
       goto mpr_cleanup;
    }
 
