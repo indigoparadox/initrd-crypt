@@ -48,8 +48,9 @@ int mount_sys( BOOL b_umount_in ) {
             #ifdef ERRORS
             perror( "Unable to start LVM" );
             #endif /* ERRORS */
-            i_retval = ERROR_RETVAL_LVM_FAIL;
-            goto ms_cleanup;
+            /* TODO: Being unable to start LVM isn't always a fatal error. */
+            /* i_retval = ERROR_RETVAL_LVM_FAIL;
+            goto ms_cleanup; */
          }
       }
    }
@@ -135,6 +136,8 @@ int mount_probe_root( void ) {
    p_dev_dir = opendir( "/dev/mapper" );
    if( NULL != p_dev_dir ) {
       while( (p_dev_entry = readdir( p_dev_dir )) ) {
+         /* XXX */
+         printf( "Dir: %s\n", p_dev_entry->d_name );
          if( !regexec( &s_regex, p_dev_entry->d_name, 0, NULL, 0 ) ) {
             /* Create the root dev string. */
             pc_root_dev = calloc(
@@ -144,6 +147,16 @@ int mount_probe_root( void ) {
             sprintf( pc_root_dev, pc_mapper_path, p_dev_entry->d_name );
             break;
          }
+      }
+
+      /* Make sure we picked up a root device. */
+      if( NULL == pc_root_dev ) {
+         #ifdef ERRORS
+         /* TODO: Create a macro/function to print errors to stderr. */
+         printf( "Unable to find root device.\n" );
+         #endif /* ERRORS */
+         i_retval = ERROR_RETVAL_ROOT_FAIL;
+         goto mpr_cleanup;
       }
       closedir( p_dev_dir );
    } else {
@@ -156,11 +169,15 @@ int mount_probe_root( void ) {
 
    /* Attempt to mount the selected root device. */
    if( mount( pc_root_dev, pc_root_mountpoint, "ext3", MS_RDONLY, "" ) ) {
-      #ifdef ERRORS
-      perror( "Unable to mount root device" );
-      #endif /* ERRORS */
-      i_retval = ERROR_RETVAL_ROOT_FAIL;
-      goto mpr_cleanup;
+      /* Keep trying until we find an FS that works. */
+      if( mount( pc_root_dev, pc_root_mountpoint, "ext2", MS_RDONLY, "" ) ) {
+         #ifdef ERRORS
+         printf( "%s %s\n", pc_root_dev, pc_root_mountpoint );
+         perror( "Unable to mount root device" );
+         #endif /* ERRORS */
+         i_retval = ERROR_RETVAL_ROOT_FAIL;
+         goto mpr_cleanup;
+      }
    }
 
 mpr_cleanup:

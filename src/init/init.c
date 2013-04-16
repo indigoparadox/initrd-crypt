@@ -30,11 +30,13 @@ int action_crypt( void ) {
 int action_console( void ) {
    int i_retval = 0;
 
-   /* TODO: Implement console. */
-   /* echo "Do your best!"
-   /bin/busybox --install && /bin/sh */
+   /* Just keep spawning a console indefinitely. */
+   /* TODO: Enable a graceful exit to boot the system. */
+   while( 1 ) {
+      system( "/bin/busybox --install && /bin/sh" );
+   }
 
-   return 0;
+   return i_retval;
 }
 #endif /* CONSOLE */
 
@@ -65,6 +67,10 @@ int cleanup_system( int i_retval_in ) {
    } else {
       /* Reboot */
    }
+
+   /* XXX */
+   printf( "Boot OK" );
+   getchar();
 
    return i_retval_in;
 }

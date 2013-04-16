@@ -25,6 +25,18 @@ int attempt_decrypt( char* pc_key_in ) {
          goto ad_cleanup;
       }
 
+      /* Add the current device to cryptsetup args. */
+      ppc_cryptsetup_argv[i_cryptsetup_argc] = ap_lvols[i].dev;
+      ppc_cryptsetup_argv[i_cryptsetup_argc + 1] = ap_lvols[i].name;
+
+      printf(
+         "%s %s %s %s\n",
+         ppc_cryptsetup_argv[0],
+         ppc_cryptsetup_argv[1],
+         ppc_cryptsetup_argv[2],
+         ppc_cryptsetup_argv[3]
+      );
+
       /* Fork and start cryptsetup, passing it the password entered. */
       i_cryptsetup_pid = fork();
       if( 0 == i_cryptsetup_pid ) {
@@ -44,14 +56,16 @@ int attempt_decrypt( char* pc_key_in ) {
          close( ai_cryptsetup_stdin[0] );
 
          /* Pipe the password into cryptsetup. */
-         /* XXX: Should there be a !? Does write() return 0 on fail? */
-         if( !write( ai_cryptsetup_stdin[1], pc_key_in, strlen( pc_key_in ) ) ) {
+         if( -1 == write(
+            ai_cryptsetup_stdin[1], pc_key_in, strlen( pc_key_in ) )
+         ) {
             #ifdef ERRORS
             perror( "Unable to communicate with cryptsetup" );
             #endif /* ERRORS */
             goto ad_cleanup;
          }
 
+         /* while( 0 != waitpid( i_cryptsetup_pid, NULL, WNOHANG ) ) { } */
          wait( NULL );
       }
    }
@@ -109,17 +123,23 @@ int prompt_decrypt( void ) {
          }
       }
 
-      /* Iteration cleanup. */
-      free( pc_key_buffer );
-
       /* Perform the decryption, passing the resulting retval back. */
       i_retval = attempt_decrypt( pc_key_buffer );
+
+      /* Iteration cleanup. */
+      free( pc_key_buffer );
+      i_key_buffer_size = 1;
+      i_key_index = 0;
+
       if( !i_retval ) {
          break;
       }
 
       i_key_attempts++;
    }
+
+   /* Reset terminal to previous (echoing) settings. */
+   tcsetattr( fileno( stdin ), TCSANOW, &oldterm );
 
    return i_retval;
 }

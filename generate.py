@@ -99,173 +99,161 @@ def ld_version( root='/' ):
       else:
          return ld_match.groups()[0]
 
-def build_image( host_path, hostname, bincopy_root='/' ):
+def build_image( args, temp_path ):
+   my_logger = logging.getLogger( 'initrd.build' )
+
+   current_path = os.getcwd()
+   initrd_path = os.path.join( temp_path, 'initrd' )
+
+   # Copy the source to a working directory to make final tweaks.
+   shutil.copytree(
+      args.image_path,
+      initrd_path,
+      symlinks=True
+   )
+   shutil.copy(
+      os.path.join( args.output_path, 'init' ),
+      initrd_path
+   )
+
+   # FIXME: Copy compiled init to the working directory.
+
+   # TODO: Add kernel modules.
+
+   os.chdir( initrd_path )
+
+   # TODO: Perform the integration from the host-specific binary list.
+   ld_ver = ld_version( root=args.root_path )
+   with open(
+      os.path.join( args.host_path, '{}.binlist'.format( args.hostname ) ),
+      'r'
+   ) as binlist_file:
+      binline_pattern = re.compile( r'(\S*)\s*([sl]?)' )
+      for line in binlist_file:
+         binline_match = binline_pattern.match( line )
+         line_path = binline_match.groups()[0].format( ld_ver )
+         if not copy_binary(
+            line_path,
+            initrd_path,
+            static=binline_match.groups()[1],
+            root=args.root_path
+         ):
+            my_logger.error( 'Error copying file. Aborting.' )
+            return
+
+   # Fix internal permissions and ownership.
+   my_logger.info( 'Fixing permissions...' )
+   fix_perms( '.', '755', recursive=True, ftype='d' )
+   fix_perms( '.', '644', recursive=True, ftype='f' )
+   fix_perms( './bin', '755', recursive=True, ftype='f' )
+   fix_perms( './sbin', '755', recursive=True, ftype='f' )
+   fix_perms( './lib', '755', recursive=True, fname='*.so' )
+   fix_perms( './etc/profile', '755' )
+   fix_perms( './init', '755' )
+   #fix_perms( './sbin/dropbear', '4755' )
+   #fix_perms( './bin/busybox', '4755' )
+   #fix_perms( './bin/simple.script', '4755' )
+   #my_logger.info( 'Fixing ownership...' )
+   #subprocess.check_call( ['sudo', 'chown', '-R', 'root:root', '.'] )
+
+   # TODO: Randomize or allow specification of a file modification date.
+
+   # Perform the actual build of the image.
+   my_logger.info( 'Compressing image...' )
+   proc_find = \
+      subprocess.Popen( ['find', '.', '-print0'], stdout=subprocess.PIPE )
+   proc_cpio = subprocess.Popen(
+      ['cpio', '--null', '-ov', '--format=newc'],
+      stdin=proc_find.stdout,
+      stdout=subprocess.PIPE,
+      stderr=subprocess.PIPE
+   )
+
+   # Open up the target archive file and dump the compressed data into it.
+   os.chdir( current_path )
+   image_path = os.path.join( args.output_path, 'initrd.gz' )
+   with gzip.open( image_path, 'wb', compresslevel=9 ) as output:
+      for chunk in iter( lambda: proc_cpio.stdout.read( 8192 ), '' ):
+         output.write( chunk )
+
+   my_logger.info( 'Image written to {}.'.format( image_path ) )
+
+#def compile_init( host_path, hostname, release=False, errors=False, net=False ):
+def compile_init( args, temp_path ):
+   my_logger = logging.getLogger( 'initrd.compile' )
+   current_path = os.getcwd()
+   init_build_path = os.path.join( temp_path, 'init' )
+
+   # Copy the raw source.
+   shutil.copytree(
+      # FIXME: Specify source path.
+      os.path.join( 'src', 'init' ),
+      init_build_path
+   )
+
+   # Copy the host-specific code.
+   shutil.copy(
+      os.path.join( args.host_path, '{}.c'.format( args.hostname ) ),
+      os.path.join( init_build_path, 'host.c' )
+   )
+
+   my_xor_key = xor_key()
+   scramble_strings(
+      os.path.join( temp_path, 'init' ),
+      os.path.join( init_build_path, 'host.c' ),
+      my_xor_key
+   )
+   scramble_strings(
+      os.path.join( temp_path, 'init' ),
+      os.path.join( init_build_path, 'genstrings.c' ),
+      my_xor_key
+   )
+
+   shutil.copy(
+      os.path.join( temp_path, 'init', 'host.c' ),
+      os.path.join( args.output_path, 'host.c' )
+   )
+   shutil.copy(
+      os.path.join( temp_path, 'init', 'genstrings.c' ),
+      os.path.join( args.output_path, 'genstrings.c' )
+   )
+
+   # Perform the compile and copy the result back here.
+   os.chdir( init_build_path )
+   command = ['make']
+
+   # Add options to build command.
+   cflags = ['CFLAGS=-Wall -O3']
+   if not args.compile_only:
+      command += ['release']
+   else:
+      cflags += ['-g']
+
+   if args.errors:
+      cflags += ['-DERRORS']
+
+   if args.internet:
+      cflags += ['-DNET']
+
+   if args.console:
+      cflags += ['-DCONSOLE']
+
+   command += [' '.join( cflags )]
+
    try:
-      my_logger = logging.getLogger( 'initrd.build' )
-
-      temp_path = tempfile.mkdtemp()
-      current_path = os.getcwd()
-
-      # Copy the source to a working directory to make final tweaks.
-      shutil.copytree(
-         # FIXME: Specify image template path.
-         'image',
-         os.path.join( temp_path, 'initrd' ),
-         symlinks=True
-      )
-
-      # TODO: Add kernel modules.
-
-      os.chdir( os.path.join( temp_path, 'initrd' ) )
-
-      # TODO: Perform the integration from the host-specific binary list.
-      ld_ver = ld_version( root=bincopy_root )
-      with open(
-         os.path.join( host_path, '{}.binlist'.format( hostname ) ), 'r'
-      ) as binlist_file:
-         binline_pattern = re.compile( r'(\S*)\s*([sl]?)' )
-         for line in binlist_file:
-            binline_match = binline_pattern.match( line )
-            line_path = binline_match.groups()[0].format( ld_ver )
-            if not copy_binary(
-               line_path,
-               os.path.join( temp_path, 'initrd' ),
-               static=binline_match.groups()[1],
-               root=bincopy_root
-            ):
-               my_logger.error( 'Error copying file. Aborting.' )
-               return
-
-      # Fix internal permissions and ownership.
-      my_logger.info( 'Fixing permissions...' )
-      fix_perms( '.', '755', recursive=True, ftype='d' )
-      fix_perms( '.', '644', recursive=True, ftype='f' )
-      fix_perms( './bin', '755', recursive=True, ftype='f' )
-      fix_perms( './sbin', '755', recursive=True, ftype='f' )
-      fix_perms( './lib', '755', recursive=True, fname='*.so' )
-      fix_perms( './etc/profile', '755' )
-      fix_perms( './init', '755' )
-      #fix_perms( './sbin/dropbear', '4755' )
-      #fix_perms( './bin/busybox', '4755' )
-      #fix_perms( './bin/simple.script', '4755' )
-      #my_logger.info( 'Fixing ownership...' )
-      #subprocess.check_call( ['sudo', 'chown', '-R', 'root:root', '.'] )
-
-      # TODO: Randomize or allow specification of a file modification date.
-
-      # Perform the actual build of the image.
-      my_logger.info( 'Compressing image...' )
-      proc_find = \
-         subprocess.Popen( ['find', '.', '-print0'], stdout=subprocess.PIPE )
-      proc_cpio = subprocess.Popen(
-         ['cpio', '--null', '-ov', '--format=newc'],
-         stdin=proc_find.stdout,
-         stdout=subprocess.PIPE,
-         stderr=subprocess.PIPE
-      )
-
-      # Open up the target archive file and dump the compressed data into it.
-      # FIXME: Specify the destination path.
-      image_path = os.path.join( current_path, 'build', 'initrd.gz' )
-      with gzip.open( image_path, 'wb', compresslevel=9 ) as output:
-         for chunk in iter( lambda: proc_cpio.stdout.read( 8192 ), '' ):
-            output.write( chunk )
-
-      my_logger.info( 'Image written to {}.'.format( image_path ) )
-
-      os.chdir( current_path )
-
-   finally:
-      try:
-         shutil.rmtree( temp_path )
-      except OSError, e:
-         # Ignore no such directory errors.
-         if 2 != e.errno:
-            raise
-
-def compile_init( host_path, hostname, release=False, errors=False, net=False ):
+      subprocess.check_call( command )
+   except:
+      my_logger.error( "Make process failed." )
+      return
+   os.chdir( current_path )
    try:
-      my_logger = logging.getLogger( 'initrd.compile' )
-      temp_path = tempfile.mkdtemp()
-      current_path = os.getcwd()
-
-      # Copy the raw source.
-      shutil.copytree(
-         # FIXME: Specify source path.
-         os.path.join( 'src', 'init' ),
-         os.path.join( temp_path, 'init' )
-      )
-
-      # Copy the host-specific code.
-      shutil.copy(
-         os.path.join( host_path, '{}.c'.format( hostname ) ),
-         os.path.join( temp_path, 'init', 'host.c' )
-      )
-
-      my_xor_key = xor_key()
-      scramble_strings(
-         os.path.join( temp_path, 'init' ),
-         os.path.join( temp_path, 'init', 'host.c' ),
-         my_xor_key
-      )
-      scramble_strings(
-         os.path.join( temp_path, 'init' ),
-         os.path.join( temp_path, 'init', 'genstrings.c' ),
-         my_xor_key
-      )
-
-      shutil.copy(
-         os.path.join( temp_path, 'init', 'host.c' ),
-         # FIXME: Specify the destination path.
-         os.path.join( '.', 'build', 'host.c' )
-      )
-      shutil.copy(
-         os.path.join( temp_path, 'init', 'genstrings.c' ),
-         # FIXME: Specify the destination path.
-         os.path.join( '.', 'build', 'genstrings.c' )
-      )
-
-      # Perform the compile and copy the result back here.
-      os.chdir( os.path.join( temp_path, 'init' ) )
-      command = ['make']
-
-      # Add options to build command.
-      cflags = ['CFLAGS=-Wall -O3']
-      if release:
-         command += ['release']
-      else:
-         cflags += ['-g']
-
-      if errors:
-         cflags += ['-DERRORS']
-
-      if net:
-         cflags += ['-DNET']
-
-      command += [' '.join( cflags )]
-
-      try:
-         subprocess.check_call( command )
-      except:
-         my_logger.error( "Make process failed." )
-         return
-      os.chdir( current_path )
-      try:
-         os.mkdir( 'build' )
-      except:
-         pass
-      shutil.copy(
-         os.path.join( temp_path, 'init', 'init' ),
-         # FIXME: Specify the destination path.
-         os.path.join( '.', 'build', 'init' )
-      )
-   finally:
-      try:
-         shutil.rmtree( temp_path )
-      except OSError, e:
-         # Ignore no such directory errors.
-         if 2 != e.errno:
-            raise
+      os.mkdir( 'build' )
+   except:
+      pass
+   shutil.copy(
+      os.path.join( init_build_path, 'init' ),
+      os.path.join( args.output_path, 'init' )
+   )
 
 def scramble_strings( init_path, source_path, xor_key ):
 
@@ -319,6 +307,10 @@ def main():
       help='Build an init with Internet support.'
    )
    parser.add_argument(
+      '-t', '--console', action='store_true', dest='console',
+      help='Build an init with a console option.'
+   )
+   parser.add_argument(
       '-m', '--modules-path', action='store', dest='modules_path', type=str,
       help='Specify the path to kernel modules root to include.'
    )
@@ -327,9 +319,24 @@ def main():
       help='Specify a hostname to compile for other than the current.'
    )
    parser.add_argument(
-      '-p', '--host-path', action='store', dest='host_path',
+      '-p', '--host-path', action='store', dest='host_path', type=str,
       default='/etc/ifdy-initrd',
       help='Specify the path to host-specific configuration files.'
+   )
+   parser.add_argument(
+      '-g', '--image-path', action='store', dest='image_path', type=str,
+      default='/usr/share/ifdy-initrd/image',
+      help='Specify the path to initrd image skeleton.'
+   )
+   parser.add_argument(
+      '-r', '--root-path', action='store', dest='root_path', type=str,
+      default='/',
+      help='Specify the path to the root from which to copy binaries.'
+   )
+   parser.add_argument(
+      '-o', '--output-path', action='store', dest='output_path', type=str,
+      default='.',
+      help='Specify the path in which to store the built initrd.'
    )
    args = parser.parse_args()
 
@@ -338,15 +345,21 @@ def main():
 
    random.seed()
 
-   my_logger.info( 'Compiling init...' )
-   compile_init(
-      args.host_path, args.hostname, release=not args.compile_only,
-      errors=args.errors, net=args.internet
-   )
+   try:
+      temp_path = tempfile.mkdtemp()
+      my_logger.info( 'Compiling init...' )
+      compile_init( args, temp_path )
 
-   if not args.compile_only:
-      my_logger.info( 'Building image...' )
-      build_image( args.host_path, args.hostname )
+      if not args.compile_only:
+         my_logger.info( 'Building image...' )
+         build_image( args, temp_path )
+   finally:
+      try:
+         shutil.rmtree( temp_path )
+      except OSError, e:
+         # Ignore no such directory errors.
+         if 2 != e.errno:
+            raise
 
 if __name__ == '__main__':
    main()

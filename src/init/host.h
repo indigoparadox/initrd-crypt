@@ -45,6 +45,9 @@
       (*lvols)[i].dev = descramble_create_string( \
          aac_lvol_names[i][1], gi_skey \
       ); \
+      (*lvols)[i].fs = descramble_create_string( \
+         aac_lvol_names[i][2], gi_skey \
+      ); \
    }
 
 #define HOST_FREE_LVOLS( lvols_target ) \

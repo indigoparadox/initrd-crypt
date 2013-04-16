@@ -11,6 +11,7 @@ typedef struct {
 typedef struct {
    char* name;
    char* dev;
+   char* fs;
 } LVOL;
 
 #ifndef BOOL
