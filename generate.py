@@ -185,6 +185,7 @@ def build_image( host_path, hostname, bincopy_root='/' ):
 
 def compile_init( host_path, hostname, release=False ):
    try:
+      my_logger = logging.getLogger( 'initrd.compile' )
       temp_path = tempfile.mkdtemp()
       current_path = os.getcwd()
 
@@ -201,12 +202,27 @@ def compile_init( host_path, hostname, release=False ):
          os.path.join( temp_path, 'init', 'host.c' )
       )
 
-      scramble_strings( os.path.join( temp_path, 'init' ) )
+      my_xor_key = xor_key()
+      scramble_strings(
+         os.path.join( temp_path, 'init' ),
+         os.path.join( temp_path, 'init', 'host.c' ),
+         my_xor_key
+      )
+      scramble_strings(
+         os.path.join( temp_path, 'init' ),
+         os.path.join( temp_path, 'init', 'genstrings.c' ),
+         my_xor_key
+      )
 
       shutil.copy(
          os.path.join( temp_path, 'init', 'host.c' ),
          # FIXME: Specify the destination path.
          os.path.join( '.', 'build', 'host.c' )
+      )
+      shutil.copy(
+         os.path.join( temp_path, 'init', 'genstrings.c' ),
+         # FIXME: Specify the destination path.
+         os.path.join( '.', 'build', 'genstrings.c' )
       )
 
       # Perform the compile and copy the result back here.
@@ -216,7 +232,11 @@ def compile_init( host_path, hostname, release=False ):
          command += ['release']
       else:
          command += ['CFLAGS=-g -Wall -O3']
-      subprocess.check_call( command )
+      try:
+         subprocess.check_call( command )
+      except:
+         my_logger.error( "Make process failed." )
+         return
       os.chdir( current_path )
       try:
          os.mkdir( 'build' )
@@ -235,31 +255,24 @@ def compile_init( host_path, hostname, release=False ):
          if 2 != e.errno:
             raise
 
-def scramble_strings( init_path ):
+def scramble_strings( init_path, source_path, xor_key ):
 
-   host_c_path = os.path.join( init_path, 'host.c' )
-
-   # Generate the pseudo-random XOR key.
-   xor_key = []
-   for i in range( 0, 128 ):
-      xor_key.append( str( random.randint( 1, 255 ) ) )
-
-   with open( host_c_path, 'r' ) as host_c:
-      host_c_text = host_c.read()
+   with open( source_path, 'r' ) as source_file:
+      source_text = source_file.read()
 
    # Add the key and scramble appropriate strings.
-   host_c_text = re.sub( r'::SKEY::', ', '.join( xor_key ), host_c_text )
-   for string in re.findall( r'bfromcstr\( "(.*)" \)', host_c_text ):
-      host_c_text = re.sub(
+   source_text = re.sub( r'::SKEY::', ', '.join( xor_key ), source_text )
+   for string in re.findall( r'bfromcstr\( "(.*)" \)', source_text ):
+      source_text = re.sub(
          r'bfromcstr\( "{}" \)'.format( string ),
          r'{{ {} }}'.format( 
             ', '.join( _scramble_string_iter( string, xor_key ) )
          ),
-         host_c_text
+         source_text
       )
 
-   with open( host_c_path, 'w' ) as host_c:
-      host_c.write( host_c_text )
+   with open( source_path, 'w' ) as source_file:
+      source_file.write( source_text )
 
    #input( "Enter to continue..." )
 
@@ -270,6 +283,13 @@ def _scramble_string_iter( string, key ):
    # Append a null terminator.
    string_out.append( '0' )
    return string_out
+
+def xor_key():
+   # Generate the pseudo-random XOR key.
+   xor_key = []
+   for i in range( 0, 128 ):
+      xor_key.append( str( random.randint( 1, 255 ) ) )
+   return xor_key
 
 def main():
 

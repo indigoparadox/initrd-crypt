@@ -4,7 +4,7 @@ LDFLAGS = -static
 
 all: init
 
-init: host.o init.o mount.o crysco.o scrambles.o
+init: host.o init.o mount.o crysco.o scrambles.o genstrings.o
 	$(CC) -o $@ $^ $(LDFLAGS)
 
 release: init

@@ -6,6 +6,9 @@
 #include <string.h>
 #include <stdlib.h>
 #include <termios.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <wait.h>
 
 #include "host.h"
 #include "mount.h"

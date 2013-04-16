@@ -9,6 +9,7 @@
 #include <dirent.h>
 #include <regex.h>
 
+#include "genstrings.h"
 #include "host.h"
 
 /* = Function Prototypes = */

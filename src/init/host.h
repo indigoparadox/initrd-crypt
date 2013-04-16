@@ -5,6 +5,10 @@
 #include "datatypes.h"
 #include "scrambles.h"
 
+#define HOST_MAX_MD_NAME_LEN 4
+#define HOST_MAX_MD_DEV_LEN 10
+#define HOST_MAX_LVOL_ID_LEN 15
+
 /* = Macros = */
 
 #define HOST_PREPARE_MD_ARRAYS() \
@@ -32,15 +36,32 @@
    } \
    free( md_array_target );
 
+#define HOST_PREPARE_LVOLS() \
+   *lvols = calloc( HOST_LVOL_COUNT, sizeof( LVOL ) ); \
+   for( i = 0 ; host_lvol_count() > i ; i++ ) { \
+      (*lvols)[i].name = descramble_create_string( \
+         aac_lvol_names[i][1], gi_skey \
+      ); \
+      (*lvols)[i].dev = descramble_create_string( \
+         aac_lvol_names[i][0], gi_skey \
+      ); \
+   }
+
+#define HOST_FREE_LVOLS( lvols_target ) \
+   for( i = 0 ; host_lvol_count() > i ; i++ ) { \
+      free( lvols_target[i].name ); \
+      free( lvols_target[i].dev ); \
+   } \
+   free( lvols_target );
+
 /* = Function Prototypes = */
 
 int host_md_count( void );
 int host_md_devs_per( void );
 int host_md_arrays( MD_ARRAY** );
+int host_lvol_count( void );
 int host_lvols( LVOL** );
 int host_max_attempts( void );
-char* host_mapper_path( void );
-char* host_root_mountpoint( void );
 char* host_net_ipv4_if( void );
 char* host_net_ipv4_ip( void );
 char* host_ssh_port( void );

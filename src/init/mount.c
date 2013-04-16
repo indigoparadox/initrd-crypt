@@ -13,13 +13,17 @@ int mount_sys( BOOL b_umount_in ) {
          umount2( "/dev/pts", MNT_FORCE ) ||
          umount2( "/dev", MNT_FORCE )
       ) {
+         #ifdef ERRORS
          perror( "Unable to unmount one or more special filesystems" );
+         #endif /* ERRORS */
          i_retval = 1;
          goto ms_cleanup;
       }
    } else {
       if( mount( NULL, "/dev", "devtmpfs", 0, "" ) ) {
+         #ifdef ERRORS
          perror( "Unable to mount one or more special filesystems" );
+         #endif /* ERRORS */
          i_retval = 1;
          goto ms_cleanup;
       }
@@ -31,7 +35,9 @@ int mount_sys( BOOL b_umount_in ) {
          mount( NULL, "/proc", "proc", 0, "" ) ||
          mount( NULL, "/sys", "sysfs", 0, "" )
       ) {
+         #ifdef ERRORS
          perror( "Unable to mount one or more special filesystems" );
+         #endif /* ERRORS */
          i_retval = 1;
          goto ms_cleanup;
       } else {
@@ -39,7 +45,9 @@ int mount_sys( BOOL b_umount_in ) {
             system( "/sbin/vgscan --mknodes" ) ||
             system( "/sbin/vgchange -a ay" )
          ) {
+            #ifdef ERRORS
             perror( "Unable to start LVM" );
+            #endif /* ERRORS */
             i_retval = 1;
             goto ms_cleanup;
          }
@@ -97,12 +105,14 @@ int mount_probe_root( void ) {
 
    /* Initialize strings, etc. */
    if( regcomp( &s_regex, ".*\\-root", 0 ) ) {
+      #ifdef ERRORS
       perror( "Unable to compile root search" );
+      #endif /* ERRORS */
       goto mpr_cleanup;
    }
 
-   pc_mapper_path = host_mapper_path();
-   pc_root_mountpoint = host_root_mountpoint();
+   pc_mapper_path = config_mapper_path();
+   pc_root_mountpoint = config_root_mountpoint();
 
    /* Try to find an appropriate root device. */
    p_dev_dir = opendir( "/dev/mapper" );
@@ -120,14 +130,18 @@ int mount_probe_root( void ) {
       }
       closedir( p_dev_dir );
    } else {
+      #ifdef ERRORS
       perror( "Unable to open /dev/mapper" );
+      #endif /* ERRORS */
       i_retval = 1;
       goto mpr_cleanup;
    }
 
    /* Attempt to mount the selected root device. */
    if( mount( pc_root_dev, pc_root_mountpoint, "ext3", MS_RDONLY, "" ) ) {
+      #ifdef ERRORS
       perror( "Unable to mount root device" );
+      #endif /* ERRORS */
       i_retval = 1;
       goto mpr_cleanup;
    }
