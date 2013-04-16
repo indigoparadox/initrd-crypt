@@ -90,6 +90,7 @@ int main( int argc, char* argv[] ) {
    }
 
    /* Read the kernel cmdline. */
+   /* TODO: Scramble the cmdline path, maybe? */
    pf_cmdline = fopen( "/proc/cmdline", "r" );
    if( NULL == fgets( ac_cmdline, CMDLINE_MAX_SIZE, pf_cmdline ) ) {
       #ifdef ERRORS
