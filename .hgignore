@@ -1,5 +1,1 @@
-glob:*.o
-glob:src/init/init
-glob:src/init/host.c
 glob:build
-glob:build.sh
