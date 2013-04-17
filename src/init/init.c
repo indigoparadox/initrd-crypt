@@ -5,11 +5,7 @@
 #include <signal.h>
 #include <linux/reboot.h>
 
-#include "host.h"
-
-#ifndef HOSTNAME_H
-#error "No hostname specified!"
-#endif /* HOSTNAME */
+#include "config.h"
 
 #include "crysco.h"
 #include "mount.h"

@@ -1,3 +1,53 @@
+divert(-1)
 dnl changequote(<:>)
-define(`SKEY',`char gi_skey[] = { esyscmd(`scripts/genkey.sh') };')
 dnl changequote(`,')
+dnl #include "host.h"
+dnl esyscmd(`scripts/xor.sh -f maketemp(`foo') $1')
+dnl esyscmd(`rm TEMPFILE()')')
+changecom(@@)
+define(`TEMPFILE',maketemp(`/tmp/irds'))
+esyscmd(./scripts/xor.sh -k -f TEMPFILE())
+define(`CONFIG',`#define $1 esyscmd(./scripts/xor.sh -f TEMPFILE() "$2")')
+define(`CONFIG_END',`
+/* = Function Prototypes = */
+
+MD_ARRAY* config_load_md_arrays( void );
+void config_free_md_arrays( MD_ARRAY* );
+
+#endif /* SCRAMBLES_H */
+esyscmd(rm TEMPFILE())')
+divert(0)
+#ifndef SCRAMBLES_H
+#define SCRAMBLES_H
+
+#include <stdlib.h>
+#include <string.h>
+
+/* = Structures and Types = */
+
+typedef struct MD_ARRAY {
+   char* name;
+   char** devs;
+   struct MD_ARRAY* next;
+} MD_ARRAY;
+
+typedef struct LUKS_VOL {
+   char* name;
+   char* dev;
+   char* fs;
+   struct LUKS_VOL* next;
+} LUKS_VOL;
+
+/* = Generic Configuration = */
+
+/* This only supports two devices per array right now, but maybe we'll        *
+ * support more later on.                                                     */
+CONFIG(CONFIG_REGEX_MD_ARRAYS,`[a-zA-Z0-9]*<[a-zA-Z0-9]*|[a-zA-Z0-9]*>')
+CONFIG(CONFIG_REGEX_STRING_ARRAY,`[a-zA-Z0-9]*')
+
+CONFIG(CONFIG_SYS_FS_MOUNT,`/sys|/proc|/dev|/dev/pts')
+CONFIG(CONFIG_SYS_FS_UMOUNT,`/dev/pts|/dev|/proc|/sys')
+
+/* = Host-Specific Configuration = */
+
+#define CONFIG_SKEY esyscmd(./scripts/xor.sh -f TEMPFILE() -k)

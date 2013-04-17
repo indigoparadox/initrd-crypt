@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include <libcryptsetup.h>
 
-#include "host.h"
+#include "config.h"
 #include "mount.h"
 #include "error.h"
 

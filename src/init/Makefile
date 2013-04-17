@@ -1,7 +1,7 @@
 
 CFLAGS = -Wall -O3
 LDFLAGS = -static -lcryptsetup -ldevmapper -ludev -luuid -lgcrypt -lgpg-error -lrt
-OBJS = host.o init.o mount.o crysco.o scrambles.o genstrings.o
+OBJS = config.o init.o mount.o crysco.o
 
 all: init
 
@@ -11,13 +11,9 @@ init: $(OBJS)
 release: init
 	strip init
 
-genstrings.o:
-	m4 genstrings.c.m4 > genstrings.c
-	$(CC) $(CFLAGS) -o $@ -c genstrings.c
-
-host.o:
-	m4 /home/alexanderfb/Downloads/hosts/test.c.m4 > host.c
-	$(CC) $(CFLAGS) -o $@ -c host.c
+config.o:
+	m4 /home/alexanderfb/Downloads/hosts/test.h.m4 > config.h
+	$(CC) $(CFLAGS) -o $@ -c config.c
 
 # = Generic Utility Definitions =
 
@@ -26,7 +22,6 @@ host.o:
 
 clean:
 	find -name "*.o" -exec rm {} \;
-	rm host.c
-	rm genstrings.c
+	rm config.h
 	rm init
 
