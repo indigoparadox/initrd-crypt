@@ -73,11 +73,12 @@ int cleanup_system( int i_retval_in ) {
       /* Switchroot */
       execv( ac_command_switch_root[0], ac_command_switch_root );
    } else {
+      printf( "Insufficient data.\n" );
+      getchar();
+
       /* Reboot */
       reboot( LINUX_REBOOT_CMD_RESTART );
    }
-
-   getchar();
 
    return i_retval_in;
 }
