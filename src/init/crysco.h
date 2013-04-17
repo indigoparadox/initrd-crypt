@@ -6,9 +6,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <termios.h>
-#include <fcntl.h>
 #include <unistd.h>
-#include <wait.h>
 #include <libcryptsetup.h>
 
 #include "host.h"

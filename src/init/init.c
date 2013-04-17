@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <regex.h>
 #include <signal.h>
+#include <linux/reboot.h>
 
 #include "host.h"
 
@@ -58,19 +59,21 @@ int cleanup_system( int i_retval_in ) {
       i_retval_in = mount_probe_usr();
    }
    if( !i_retval_in ) {
-      i_retval_in = mount_sys( FALSE );
+      i_retval_in = umount_sys();
    }
+
+   printf( "%d\n", i_retval_in );
+   perror( "foo" );
+   getchar();
 
    /* FIXME: Execute switchroot on success, reboot on failure. */
    if( !i_retval_in ) {
       /* Switchroot */
+
    } else {
       /* Reboot */
+      reboot( LINUX_REBOOT_CMD_RESTART );
    }
-
-   /* XXX */
-   printf( "Boot OK" );
-   getchar();
 
    return i_retval_in;
 }
@@ -109,7 +112,7 @@ int main( int argc, char* argv[] ) {
 
    if( 1 == getpid() ) {
       /* We're being called as init, so set the system up. */
-      i_retval = mount_sys( FALSE );
+      i_retval = mount_sys();
       if( i_retval ) {
          goto main_cleanup;
       }
