@@ -44,6 +44,12 @@ int action_console( void ) {
 /* Purpose: Tidy up the system and prepare/enact the "real" boot process.     *
  *          This should only be called from init/pid 1.                       */
 int cleanup_system( int i_retval_in ) {
+   char* ac_command_switch_root[] = {
+      "switch_root",
+      "/mnt/root",
+      "/sbin/init"
+   };
+
    #ifdef NET
    /* TODO: Try to stop network. */
    /* killall dropbear 2>/dev/null
@@ -62,18 +68,16 @@ int cleanup_system( int i_retval_in ) {
       i_retval_in = umount_sys();
    }
 
-   printf( "%d\n", i_retval_in );
-   perror( "foo" );
-   getchar();
-
-   /* FIXME: Execute switchroot on success, reboot on failure. */
+   /* Execute switchroot on success, reboot on failure. */
    if( !i_retval_in ) {
       /* Switchroot */
-
+      execv( ac_command_switch_root[0], ac_command_switch_root );
    } else {
       /* Reboot */
       reboot( LINUX_REBOOT_CMD_RESTART );
    }
+
+   getchar();
 
    return i_retval_in;
 }

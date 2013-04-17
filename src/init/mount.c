@@ -15,10 +15,11 @@ int umount_sys( void ) {
       i_retval = umount2( ppc_sys_fs[i], MNT_FORCE );
       if( i_retval ) {
          #ifdef ERRORS
-         perror( "Unable to unmount one or more special filesystems" );
+         PRINTF_ERROR( "Unable to unmount %s.\n", ppc_sys_fs[i] );
+         /* perror( "Unable to unmount one or more special filesystems" ); */
          #endif /* ERRORS */
-         i_retval = ERROR_RETVAL_SYSFS_FAIL;
-         goto us_cleanup;
+         /* i_retval = ERROR_RETVAL_SYSFS_FAIL;
+         goto us_cleanup; */
       }
    }
 
