@@ -102,7 +102,7 @@ int main( int argc, char* argv[] ) {
       * pc_action_console = NULL,
    #endif /* CONSOLE */
       ac_cmdline[CMDLINE_MAX_SIZE] = { '\0' };
-   regmatch_t pmatch[2];
+   regmatch_t as_match[2];
    FILE* pf_cmdline = NULL;
 
    /* Protect ourselves against simple potential bypasses. */
@@ -139,6 +139,7 @@ int main( int argc, char* argv[] ) {
       }
    }
 
+   #if 0
    /* Initialize strings, etc. */
    pc_action_crypt = config_action_crypt();
    #ifdef CONSOLE
@@ -168,20 +169,22 @@ int main( int argc, char* argv[] ) {
 
    /* Act based on the system imperative. */
    if(
-      !regexec( &s_regex, ac_cmdline, 2, pmatch, 0 ) &&
+      !regexec( &s_regex, ac_cmdline, 2, as_match, 0 ) &&
       !strncmp(
          pc_action_crypt,
-         &ac_cmdline[pmatch[1].rm_so],
+         &ac_cmdline[as_match[1].rm_so],
          strlen( pc_action_crypt )
       )
    ) {
+   #endif
       i_retval = action_crypt();
+   #if 0
    #ifdef CONSOLE
    } else if(
-      !regexec( &s_regex, ac_cmdline, 2, pmatch, 0 ) &&
+      !regexec( &s_regex, ac_cmdline, 2, as_match, 0 ) &&
       !strncmp(
          pc_action_console,
-         &ac_cmdline[pmatch[1].rm_so],
+         &ac_cmdline[as_match[1].rm_so],
          strlen( pc_action_console )
       )
    ) {
@@ -194,6 +197,7 @@ int main( int argc, char* argv[] ) {
       i_retval = ERROR_RETVAL_ACTION_FAIL;
       goto main_cleanup;
    }
+   #endif
 
 main_cleanup:
    if( NULL != pc_action_crypt ) {

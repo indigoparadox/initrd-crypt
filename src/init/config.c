@@ -1,28 +1,33 @@
 
 #include "config.h"
 
-char gac_skey[] = { CONFIG_SKEY };
+const char gac_skey[] = { CONFIG_SKEY };
 
-char gac_re_md_arrays[] = { CONFIG_REGEX_MD_ARRAYS };
-char gac_re_string_array[] = { CONFIG_REGEX_STRING_ARRAY };
+const char gac_re_md_arrays[] = { CONFIG_REGEX_MD_ARRAYS };
+const char gac_re_string_array[] = { CONFIG_REGEX_STRING_ARRAY };
 
-char gac_md_arrays[] = { CONFIG_MD_ARRAYS };
-char gac_luks_vols[] = { CONFIG_LUKS_VOLS };
-char gac_net_if[] = { CONFIG_NET_IF };
-char gac_net_ip[] = { CONFIG_NET_IP };
+const char gac_md_arrays[] = { CONFIG_MD_ARRAYS };
+const char gac_luks_vols[] = { CONFIG_LUKS_VOLS };
+const char gac_net_if[] = { CONFIG_NET_IF };
+const char gac_net_ip[] = { CONFIG_NET_IP };
+const char gac_sys_fs_mount[] = { CONFIG_SYS_FS_MOUNT };
+const char gac_sys_fs_umount[] = { CONFIG_SYS_FS_UMOUNT };
+const char gac_sys_mpoint_root[] = { CONFIG_SYS_MPOINT_ROOT };
+const char gac_sys_path_mapper[] = { CONFIG_SYS_PATH_MAPPER };
+const char gac_command_mdadm[] = { CONFIG_COMMAND_MDADM };
 
 /* = Configuration Helpers = */
 
-static char descramble_char( char x_in, char y_in ) {
+/* Notes:   This function is for internal use within this module only.        *
+ *          Properties should be accessed through a specialized configuration *
+ *          loader function defined below.                                    */
+static char config_descramble_char( char x_in, char y_in ) {
    return ~((x_in & y_in) | (~x_in & ~y_in));
 }
 
 /* Purpose: Take a hard-coded scrambled string and return a dynamically-      *
- *          allocated descrambled string pointer.                             *
- * Notes:   This function is for internal use within this module only.        *
- *          Properties should be accessed through a specialized configuration *
- *          loader function defined below.                                    */
-static char* config_load_string( char* pc_string_in ) {
+ *          allocated descrambled string pointer.                             */
+char* config_descramble_string( const char* pc_string_in ) {
    char c,
       *pc_out;
    int i = 0;
@@ -31,7 +36,7 @@ static char* config_load_string( char* pc_string_in ) {
 
    while( '\0' != (c = pc_string_in[i]) ) {
 
-      pc_out[i] = read_char_static( pc_string_in[i], gac_skey[i] );
+      pc_out[i] = config_descramble_char( pc_string_in[i], gac_skey[i] );
 
       /* Iterate. */
       i++;
@@ -40,17 +45,81 @@ static char* config_load_string( char* pc_string_in ) {
    return pc_out;
 }
 
+/* Notes:   The string passed as pc_string_in should be free()ed afterwards.  */
+char** config_split_string_array( const char* pc_string_in, char* pc_re_in ) {
+   regex_t s_regex;
+   regmatch_t as_match[CONFIG_STRING_ARRAY_MAX_LEN];
+   char** ppc_out = NULL,
+      c_free_re_on_exit = 0;
+   int i, j,
+      i_strlen;
+
+   if( NULL == pc_re_in ) {
+      /* No regex was specified, so use the standard string-splitting regex. */
+      pc_re_in = config_descramble_string( gac_re_string_array );
+      c_free_re_on_exit = 1;
+   }
+
+   /* Initialize regex engine. */
+   if( regcomp( &s_regex, pc_re_in, 0 ) ) {
+      #ifdef ERRORS
+      perror( "Unable to compile string-splitting regex" );
+      #endif /* ERRORS */
+      goto cssa_cleanup;
+   }
+
+   ppc_out = calloc( 1, sizeof( char* ) );
+   if( !regexec(
+      &s_regex, pc_string_in, CONFIG_STRING_ARRAY_MAX_LEN, as_match, 0
+   ) ) {
+      for( i = 0 ; CONFIG_STRING_ARRAY_MAX_LEN > i ; i++ ) {
+         i_strlen = as_match[i].rm_eo - as_match[i].rm_so;
+         if( 1 > i_strlen ) {
+            /* Invalid match. */
+            break;
+         }
+
+         /* Add another string to the array. */
+         ppc_out = realloc( ppc_out, (i + 1) * sizeof( char* ) );
+         ppc_out[i] = calloc( i_strlen + 1, sizeof( char ) );
+         for( j = 0 ; j < i_strlen ; j++ ) {
+            ppc_out[i][j] = pc_string_in[as_match[i].rm_so + i];
+         }
+      }
+
+      /* Add a NULL tag at the end of the array. */
+      ppc_out = realloc( ppc_out, (i + 1) * sizeof( char* ) );
+      ppc_out[i] = NULL;
+   }
+
+cssa_cleanup:
+
+   if( c_free_re_on_exit ) {
+      /* Only leave behind what we didn't bring with us. */
+      free( pc_re_in );
+   }
+
+   return ppc_out;
+}
+
 /* = Configuration Loaders = */
 
 MD_ARRAY* config_load_md_arrays( void ) {
    MD_ARRAY* ps_md_arrays_out = NULL,
       * ps_md_array_iter = NULL;
+   /* TODO: How should we decide the max potential matches? */
+   char* pc_re_md_arrays_outer = NULL,
+      * pc_re_md_arrays_inner = NULL,
+      * pc_md_arrays = NULL;
+   int i_retval,
+      i_strlen,
+      i;
 
-   md_arrays = calloc( 1, sizeof( MD_ARRAY ) );
 
-   /* Parse out the arrays 
+   /* Parse out the arrays and create structs for them. */
 
    #if 0
+   //md_arrays = calloc( 1, sizeof( MD_ARRAY ) );
    for( i = 0 ; host_md_count() > i ; i++ ) {
       (*md_arrays)[i].name = descramble_create_string( \
          aac_dev_md_names[i], gi_skey \
@@ -66,12 +135,22 @@ MD_ARRAY* config_load_md_arrays( void ) {
    #endif
 
 clma_cleanup:
+
+   free( pc_re_md_arrays_outer );
+   free( pc_re_md_arrays_inner );
    
    return ps_md_arrays_out;
 }
 
 void config_free_md_arrays( MD_ARRAY* ps_md_arrays_in ) {
+   MD_ARRAY* ps_md_array_iter = ps_md_arrays_in,
+      * ps_md_array_prev = NULL;
 
+   while( NULL != ps_md_array_iter ) {
+      ps_md_array_prev = ps_md_array_iter;
+      ps_md_array_iter = ps_md_array_iter->next;
+      free( ps_md_array_prev );
+   }
 }
 
 /* static void config_destroy_string( char** ppc_string_in ) {

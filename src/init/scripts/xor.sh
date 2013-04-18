@@ -40,5 +40,6 @@ else
    for ((i=0 ; $i < ${#XOR_STRING_BYTES[*]} ; i++)); do
       printf "0x%x, " $((${XOR_STRING_BYTES[$i]} ^ ${KEY[$i]}));
    done
+   printf "0x0"
 fi
 

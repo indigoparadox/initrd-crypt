@@ -8,12 +8,14 @@ int attempt_decrypt( char* pc_key_in ) {
       i_lvol_count,
       i_retval = 0,
       i_cryptsetup_context;
-   LVOL* ap_lvols;
+   //LVOL* ap_lvols;
    struct crypt_device* ps_crypt_device;
 
-   i_lvol_count = host_lvols( &ap_lvols );
+   //i_lvol_count = host_lvols( &ap_lvols );
 
    /* Attempt to probe each device for the current host. */
+   /* FIXME */
+   #if 0
    for( i = 0 ; i_lvol_count > i ; i++ ) {
       i_cryptsetup_context = crypt_init( &ps_crypt_device, ap_lvols[i].dev );
       if( 0 > i_cryptsetup_context ) {
@@ -58,6 +60,7 @@ int attempt_decrypt( char* pc_key_in ) {
       printf( "Activated device %s", crypt_get_device_name( ps_crypt_device ) );
       */
    }
+   #endif
 
    /* See if decryption was successful. */
    i_retval = mount_probe_root();
@@ -65,7 +68,7 @@ int attempt_decrypt( char* pc_key_in ) {
 ad_cleanup:
 
    /* Perform cleanup, destroy the information structure. */
-   HOST_FREE_LVOLS( ap_lvols );
+   //HOST_FREE_LVOLS( ap_lvols );
 
    return i_retval;
 }
@@ -89,7 +92,7 @@ int prompt_decrypt( void ) {
    newterm.c_lflag &= ~ECHO;
    tcsetattr( fileno( stdin ), TCSANOW, &newterm );
 
-   while( host_max_attempts() > i_key_attempts ) {
+   while( CONFIG_MAX_ATTEMPTS > i_key_attempts ) {
 
       /* Get a password from stdin. */
       pc_key_buffer = calloc( i_key_buffer_size, sizeof( char ) );

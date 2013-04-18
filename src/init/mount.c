@@ -1,16 +1,22 @@
 
 #include "mount.h"
 
-extern const int cgi_config_sys_fs_count;
+/* extern const int cgi_config_sys_fs_count; */
+extern const char* gac_sys_fs_umount;
+extern const char* gac_sys_path_mapper;
+extern const char* gac_sys_mpoint_root;
+extern const char* gac_command_mdadm;
 
 int umount_sys( void ) {
    int i_retval = 0,
-      i;
-   char** ppc_sys_fs = NULL;
+      i = 0;
+   char* pc_sys_fs_string = NULL,
+      ** ppc_sys_fs = NULL;
 
-   ppc_sys_fs = config_sys_fs();
+   pc_sys_fs_string = config_descramble_string( gac_sys_fs_umount );
+   ppc_sys_fs = config_split_string_array( pc_sys_fs_string, NULL );
 
-   for( i = cgi_config_sys_fs_count - 1 ; 0 <= i ; i-- ) {
+   while( NULL != ppc_sys_fs[i] ) {
       /* XXX: Handle things keeping e.g. /dev open. */
       i_retval = umount2( ppc_sys_fs[i], MNT_FORCE );
       if( i_retval ) {
@@ -21,11 +27,12 @@ int umount_sys( void ) {
          /* i_retval = ERROR_RETVAL_SYSFS_FAIL;
          goto us_cleanup; */
       }
+
+      i++;
    }
 
-us_cleanup:
-
-   CONFIG_STRINGLIST_FREE( ppc_sys_fs, cgi_config_sys_fs_count );
+   CONFIG_FREE_STRING_ARRAY( ppc_sys_fs );
+   free( pc_sys_fs_string );
 
    return i_retval;
 }
@@ -115,50 +122,53 @@ int mount_mds( void ) {
       i, j;
    char* pc_template_mdadm = NULL,
       * pc_command_mdadm = NULL;
-   MD_ARRAY* ap_md_arrays;
+   MD_ARRAY* ps_md_arrays,
+      * ps_md_array_iter;
 
-   pc_template_mdadm = command_mdadm();
+   pc_template_mdadm = config_descramble_string( gac_command_mdadm );
    
-   i_md_count = host_md_arrays( &ap_md_arrays );
+   ps_md_arrays = config_load_md_arrays();
+   ps_md_array_iter = ps_md_arrays;
 
    /* Iterate through the host-specific data structure and create md arrays.  */
-   for( i_md_iter = 0 ; i_md_count > i_md_iter ; i_md_iter++ ) {
-      /* printf( "%s\n", bdata( ap_md_arrays[i_md_iter].name ) ); */
+   while( NULL != ps_md_array_iter ) {
+      /* FIXME */
 
+      #if 0
       /* XXX: Get rid of that fudge factor five. */
       i_command_mdadm_strlen = strlen( pc_template_mdadm ) + 5;
       i_command_mdadm_strlen += strlen( "/dev/" ) + 1; /* +1 for the space. */
-      i_command_mdadm_strlen += strlen( ap_md_arrays[i_md_iter].name );
+      i_command_mdadm_strlen += strlen( ps_md_array_iter->name );
 
       /* Allocate a string to hold the finished command. */
       for(
          i_dev_iter = 0 ;
-         ap_md_arrays[i_md_iter].devs_count > i_dev_iter ;
+         ps_md_array_iter->devs_count > i_dev_iter ;
          i_dev_iter++
       ) {
          /* Add +1 for the space to precede each dev. */
          i_command_mdadm_strlen +=
-            strlen( ap_md_arrays[i_md_iter].devs[i_dev_iter] ) + 1;
+            strlen( ps_md_array_iter->devs[i_dev_iter] ) + 1;
       }
       pc_command_mdadm = calloc( i_command_mdadm_strlen, sizeof( char ) );
 
       /* Concat each device onto the command template. */
       strcpy( pc_command_mdadm, pc_template_mdadm );
       strcat( pc_command_mdadm, "/dev/" );
-      strcat( pc_command_mdadm, ap_md_arrays[i_md_iter].name );
+      strcat( pc_command_mdadm, ps_md_array_iter->name );
       strcat( pc_command_mdadm, " " );
       for(
          i_dev_iter = 0 ;
-         ap_md_arrays[i_md_iter].devs_count > i_dev_iter ;
+         ps_md_array_iter->devs_count > i_dev_iter ;
          i_dev_iter++
       ) {
-         strcat( pc_command_mdadm, ap_md_arrays[i_md_iter].devs[i_dev_iter] );
-         if( ap_md_arrays[i_md_iter].devs_count > i_dev_iter - 1 ) {
+         strcat( pc_command_mdadm, ps_md_array_iter->devs[i_dev_iter] );
+         if( ps_md_array_iter->devs_count > i_dev_iter - 1 ) {
             strcat( pc_command_mdadm, " " );
          }
       }
 
-      i_command_mdadm_strlen += strlen( ap_md_arrays[i_md_iter].name );
+      i_command_mdadm_strlen += strlen( ps_md_array_iter->name );
 
       /* Close stdout/stderr if we're squelching errors. */
       #ifndef ERRORS
@@ -183,17 +193,20 @@ int mount_mds( void ) {
       if( i_retval ) {
          #ifdef ERRORS
          PRINTF_ERROR(
-            "There was a problem starting %s.\n", ap_md_arrays[i_md_iter].name 
+            "There was a problem starting %s.\n", ps_md_array_iter->name 
          );
          #endif /* ERRORS */
          goto mm_cleanup;
       }
+      #endif
    }
 
 mm_cleanup:
 
    /* Perform cleanup, destroy the information structure. */
-   HOST_FREE_MD_ARRAYS( ap_md_arrays );
+   free( pc_command_mdadm );
+   free( pc_template_mdadm );
+   config_free_md_arrays( ps_md_arrays );
 
    return i_retval;
 }
@@ -221,7 +234,7 @@ int mount_probe_root( void ) {
    regex_t s_regex;
    int i_retval = 0;
    char* pc_root_dev = NULL,
-      * pc_mapper_path = NULL,
+      * pc_path_mapper = NULL,
       * pc_root_mountpoint = NULL;
 
    /* Initialize strings, etc. */
@@ -233,20 +246,20 @@ int mount_probe_root( void ) {
       goto mpr_cleanup;
    }
 
-   pc_mapper_path = config_mapper_path();
-   pc_root_mountpoint = config_root_mountpoint();
+   pc_path_mapper = config_descramble_string( gac_sys_path_mapper );
+   pc_root_mountpoint = config_descramble_string( gac_sys_mpoint_root );
 
    /* Try to find an appropriate root device. */
-   p_dev_dir = opendir( "/dev/mapper" );
+   p_dev_dir = opendir( pc_path_mapper );
    if( NULL != p_dev_dir ) {
       while( (p_dev_entry = readdir( p_dev_dir )) ) {
          if( !regexec( &s_regex, p_dev_entry->d_name, 0, NULL, 0 ) ) {
             /* Create the root dev string. */
             pc_root_dev = calloc(
-               strlen( pc_mapper_path ) + strlen( p_dev_entry->d_name ),
+               strlen( pc_path_mapper ) + strlen( p_dev_entry->d_name ),
                sizeof( char )
             );
-            sprintf( pc_root_dev, pc_mapper_path, p_dev_entry->d_name );
+            sprintf( pc_root_dev, pc_path_mapper, p_dev_entry->d_name );
             break;
          }
       }
@@ -287,7 +300,7 @@ mpr_cleanup:
    /* Cleanup. */
    regfree( &s_regex );
    free( pc_root_dev );
-   free( pc_mapper_path );
+   free( pc_path_mapper );
    free( pc_root_mountpoint );
 
    return i_retval;
