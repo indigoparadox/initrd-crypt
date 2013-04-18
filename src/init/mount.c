@@ -16,7 +16,7 @@ int umount_sys( void ) {
    ppc_sys_fs = config_split_string_array( pc_sys_fs_string );
 
    while( NULL != ppc_sys_fs[i] ) {
-      /* XXX: Handle things keeping e.g. /dev open. */
+      /* TODO: Handle things keeping e.g. /dev open. */
       i_retval = umount2( ppc_sys_fs[i], MNT_FORCE );
       if( i_retval ) {
          #ifdef ERRORS

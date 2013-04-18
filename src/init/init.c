@@ -110,9 +110,6 @@ int main( int argc, char* argv[] ) {
    signal( SIGINT, signal_handler );
    signal( SIGQUIT, signal_handler );
 
-   // XXX
-   mount_mds();
-
    if( 1 == getpid() ) {
       /* We're being called as init, so set the system up. */
       i_retval = mount_sys();
