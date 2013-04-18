@@ -37,7 +37,7 @@ else
    XOR_STRING_BYTES=()
    while [ -n "$XOR_STRING" ]; do
       CHAR=${XOR_STRING:0:1}
-      XOR_STRING_BYTES+=(`printf "%d" \'$CHAR`)
+      XOR_STRING_BYTES+=(`printf "%d" \'"$CHAR"`)
       XOR_STRING=${XOR_STRING:1}
    done
 
