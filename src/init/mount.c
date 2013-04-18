@@ -1,6 +1,8 @@
 
 #include "mount.h"
 
+#include "config_extern.h"
+
 CONFIG_SCRAMBLED_STRING( gac_sys_fs_mount );
 CONFIG_SCRAMBLED_STRING( gac_sys_mtype_mount );
 CONFIG_SCRAMBLED_STRING( gac_sys_fs_umount );

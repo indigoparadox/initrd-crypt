@@ -1,6 +1,8 @@
 
 #include "crysco.h"
 
+#include "config_extern.h"
+
 /* Purpose: Attempt to decrypt encrypted volumes for this host.               */
 /* Return: 0 on success, 1 on failure.                                        */
 int attempt_decrypt( char* pc_key_in ) {

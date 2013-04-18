@@ -12,8 +12,15 @@ release: $(OBJS)
 	strip $(BIN)
 
 config.o: config.c
-	m4 /home/alexanderfb/Downloads/hosts/test.h.m4 > config.h
+	./scripts/xor.sh -k -f srand
+	cat config_base.template.m4 \
+		config.template.m4 \
+		/home/alexanderfb/Downloads/hosts/test.h.m4 | m4 > config_base.h
+	cat config_extern.template.m4 \
+		config.template.m4 \
+		/home/alexanderfb/Downloads/hosts/test.h.m4 | m4 > config_extern.h
 	$(CC) $(CFLAGS) -o $@ -c config.c
+	rm srand
 
 # = Generic Utility Definitions =
 
@@ -22,6 +29,7 @@ config.o: config.c
 
 clean:
 	find -name "*.o" -exec rm {} \;
-	#rm config.h
+	rm config_base.h
+	rm config_extern.h
 	rm init
 

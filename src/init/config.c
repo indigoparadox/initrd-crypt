@@ -1,23 +1,7 @@
 
 #include "config.h"
 
-/*
-const char gac_skey[] = { CONFIG_SKEY };
-
-const char gac_re_md_arrays[] = { CONFIG_REGEX_MD_ARRAYS };
-const char gac_re_string_array[] = { CONFIG_REGEX_STRING_ARRAY };
-
-const char gac_md_arrays[] = { CONFIG_MD_ARRAYS };
-const char gac_luks_vols[] = { CONFIG_LUKS_VOLS };
-const char gac_net_if[] = { CONFIG_NET_IF };
-const char gac_net_ip[] = { CONFIG_NET_IP };
-const char gac_sys_fs_mount[] = { CONFIG_SYS_FS_MOUNT };
-const char gac_sys_mtype_mount[] = { CONFIG_SYS_MTYPE_MOUNT };
-const char gac_sys_fs_umount[] = { CONFIG_SYS_FS_UMOUNT };
-const char gac_sys_mpoint_root[] = { CONFIG_SYS_MPOINT_ROOT };
-const char gac_sys_path_mapper[] = { CONFIG_SYS_PATH_MAPPER };
-const char gac_command_mdadm[] = { CONFIG_COMMAND_MDADM };
-*/
+#include "config_base.h"
 
 /* = Configuration Helpers = */
 
