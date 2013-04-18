@@ -14,19 +14,15 @@ static char config_descramble_char( char x_in, char y_in ) {
 
 /* Purpose: Take a hard-coded scrambled string and return a dynamically-      *
  *          allocated descrambled string pointer.                             */
-char* config_descramble_string( const char* pc_string_in ) {
-   char c,
-      *pc_out;
-   int i = 0;
+char* config_descramble_string( const char* pc_string_in, const int i_len_in ) {
+   char* pc_out;
+   int i;
 
-   pc_out = calloc( strlen( pc_string_in ) + 1, sizeof( char ) );
+   /* +1 for the null terminator. */
+   pc_out = calloc( i_len_in + 1, sizeof( char ) );
 
-   while( '\0' != (c = pc_string_in[i]) ) {
-
+   for( i = 0 ; i < i_len_in ; i++ ) {
       pc_out[i] = config_descramble_char( pc_string_in[i], gac_skey[i] );
-
-      /* Iterate. */
-      i++;
    }
 
    return pc_out;
@@ -43,7 +39,10 @@ char** config_split_string_array( const char* pc_string_in, char* pc_re_in ) {
 
    if( NULL == pc_re_in ) {
       /* No regex was specified, so use the standard string-splitting regex. */
-      pc_re_in = config_descramble_string( gac_re_string_array );
+      pc_re_in = config_descramble_string(
+         gac_re_string_array,
+         gai_re_string_array
+      );
       c_free_re_on_exit = 1;
    }
 

@@ -3,20 +3,16 @@
 
 #include "config_extern.h"
 
-CONFIG_SCRAMBLED_STRING( gac_sys_fs_mount );
-CONFIG_SCRAMBLED_STRING( gac_sys_mtype_mount );
-CONFIG_SCRAMBLED_STRING( gac_sys_fs_umount );
-CONFIG_SCRAMBLED_STRING( gac_sys_path_mapper );
-CONFIG_SCRAMBLED_STRING( gac_sys_mpoint_root );
-CONFIG_SCRAMBLED_STRING( gac_command_mdadm );
-
 int umount_sys( void ) {
    int i_retval = 0,
       i = 0;
    char* pc_sys_fs_string = NULL,
       ** ppc_sys_fs = NULL;
 
-   pc_sys_fs_string = config_descramble_string( &gac_sys_fs_umount );
+   pc_sys_fs_string = config_descramble_string(
+      gac_sys_fs_umount,
+      gai_sys_fs_umount
+   );
    ppc_sys_fs = config_split_string_array( pc_sys_fs_string, NULL );
 
    while( NULL != ppc_sys_fs[i] ) {
@@ -49,10 +45,13 @@ int mount_sys( void ) {
       ** ppc_sys_fs = NULL;
    struct stat s_dir;
 
-   pc_sys_fs_string = config_descramble_string( &gac_sys_fs_mount );
+   pc_sys_fs_string = config_descramble_string(
+      gac_sys_fs_mount,
+      gai_sys_fs_mount
+   );
    ppc_sys_fs = config_split_string_array( pc_sys_fs_string, NULL );
 
-   printf( "m: %s\n", ppc_sys_fs[0] );
+   printf( "m: %s\n", pc_sys_fs_string );
 
    while( NULL != ppc_sys_fs[i] ) {
 
@@ -135,7 +134,10 @@ int mount_mds( void ) {
    MD_ARRAY* ps_md_arrays,
       * ps_md_array_iter;
 
-   pc_template_mdadm = config_descramble_string( gac_command_mdadm );
+   pc_template_mdadm = config_descramble_string(
+      gac_command_mdadm,
+      gai_command_mdadm
+   );
    
    ps_md_arrays = config_load_md_arrays();
    ps_md_array_iter = ps_md_arrays;
@@ -256,8 +258,14 @@ int mount_probe_root( void ) {
       goto mpr_cleanup;
    }
 
-   pc_path_mapper = config_descramble_string( &gac_sys_path_mapper );
-   pc_root_mountpoint = config_descramble_string( &gac_sys_mpoint_root );
+   pc_path_mapper = config_descramble_string(
+      gac_sys_path_mapper,
+      gai_sys_path_mapper
+   );
+   pc_root_mountpoint = config_descramble_string(
+      gac_sys_mpoint_root,
+      gai_sys_mpoint_root
+   );
 
    /* Try to find an appropriate root device. */
    p_dev_dir = opendir( pc_path_mapper );

@@ -12,7 +12,6 @@ release: $(OBJS)
 	strip $(BIN)
 
 config.o: config.c
-	./scripts/xor.sh -k -f srand
 	cat config_base.template.m4 \
 		config.template.m4 \
 		/home/alexanderfb/Downloads/hosts/test.h.m4 | m4 > config_base.h

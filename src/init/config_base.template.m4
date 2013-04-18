@@ -11,7 +11,8 @@ dnl FIXME: Remember the length of this array and store it in a gi_$1 variable
 dnl        for use by the string descrambler so that we don't have to rely on
 dnl        NULL termination in XOR'ed strings and we don't have gaping holes of
 dnl        padding left in the binary.
-define(`CONFIG_SCR',`const char gac_$1[] = { esyscmd(./scripts/xor.sh -f TEMPFILE() "$2") };')
+define(`CONFIG_SCR',`const char gac_$1[incr(len(`$2'))] = { esyscmd(./scripts/xor.sh -f TEMPFILE() "$2") };
+const int gai_$1 = len(`$2');')
 define(`CONFIG_RAW',`#define $1 $2')
 define(`CONFIG_END',`
 #endif /* SCRAMBLES_BASE_H */')

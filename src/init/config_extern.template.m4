@@ -7,7 +7,8 @@ dnl than config.c that need access to configuration constants/scrambled strings
 dnl (and only after config.h).
 dnl
 define(`TEMPFILE',`srand')
-define(`CONFIG_SCR',`extern const char* gac_$1;')
+define(`CONFIG_SCR',`extern const char gac_$1[];
+extern const int gai_$1;')
 define(`CONFIG_RAW',`#define $1 $2')
 define(`CONFIG_END',`
 #endif /* SCRAMBLES_EXTERN_H */')

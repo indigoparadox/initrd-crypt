@@ -26,9 +26,6 @@ typedef struct LUKS_VOL {
 
 /* = Macros = */
 
-#define CONFIG_SCRAMBLED_STRING( scrambled_string ) \
-   extern const char* scrambled_string;
-
 #define CONFIG_FREE_STRING_ARRAY( string_array ) \
    while( NULL != string_array[i] ) { \
       free( string_array[i] ); \
@@ -37,7 +34,7 @@ typedef struct LUKS_VOL {
 
 /* = Function Prototypes = */
 
-char* config_descramble_string( const char* );
+char* config_descramble_string( const char*, const int );
 char** config_split_string_array( const char*, char* );
 
 MD_ARRAY* config_load_md_arrays( void );
