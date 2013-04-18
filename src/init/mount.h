@@ -10,6 +10,7 @@
 #include <regex.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <errno.h>
 
 #include "config.h"
 #include "error.h"

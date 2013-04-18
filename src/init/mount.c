@@ -1,11 +1,12 @@
 
 #include "mount.h"
 
-/* extern const int cgi_config_sys_fs_count; */
-extern const char* gac_sys_fs_umount;
-extern const char* gac_sys_path_mapper;
-extern const char* gac_sys_mpoint_root;
-extern const char* gac_command_mdadm;
+CONFIG_SCRAMBLED_STRING( gac_sys_fs_mount );
+CONFIG_SCRAMBLED_STRING( gac_sys_mtype_mount );
+CONFIG_SCRAMBLED_STRING( gac_sys_fs_umount );
+CONFIG_SCRAMBLED_STRING( gac_sys_path_mapper );
+CONFIG_SCRAMBLED_STRING( gac_sys_mpoint_root );
+CONFIG_SCRAMBLED_STRING( gac_command_mdadm );
 
 int umount_sys( void ) {
    int i_retval = 0,
@@ -40,16 +41,20 @@ int umount_sys( void ) {
 /* Purpose: Prepare system mounts for a minimally functioning system.         */
 /* Return: 0 on success, 1 on failure.                                        */
 int mount_sys( void ) {
-   int i_retval = 0;
-
-   #if 0
-      i;
-   char** ppc_sys_fs = NULL;
+   int i_retval = 0,
+      i = 0;
+   char* pc_sys_fs_string = NULL,
+      ** ppc_sys_fs = NULL;
    struct stat s_dir;
 
-   ppc_sys_fs = config_sys_fs();
+   pc_sys_fs_string = config_descramble_string( &gac_sys_fs_mount );
+   ppc_sys_fs = config_split_string_array( pc_sys_fs_string, NULL );
 
-   for( i = 0 ; cgi_config_sys_fs_count > 0 ; i++ ) {
+   printf( "m: %s\n", ppc_sys_fs[0] );
+
+   while( NULL != ppc_sys_fs[i] ) {
+
+      /* Make sure the mountpoint exists before mounting. */
       i_retval = stat( ppc_sys_fs[i], &s_dir );
       if( -1 == i_retval && ENOENT == errno ) {
          /* Create missing mountpoint. */
@@ -60,15 +65,17 @@ int mount_sys( void ) {
          goto ms_cleanup;
       }
 
-      i_retval = mount( NULL, "/dev", "devtmpfs", 0, "" ) ) {
-      #ifdef ERRORS
-      perror( "Unable to mount one or more special filesystems" );
-      #endif /* ERRORS */
-      i_retval = ERROR_RETVAL_SYSFS_FAIL;
-      goto ms_cleanup;
+      i_retval = mount( NULL, ppc_sys_fs[i], "devtmpfs", 0, "" );
+      if( i_retval ) {
+         #ifdef ERRORS
+         perror( "Unable to mount one or more special filesystems" );
+         #endif /* ERRORS */
+         i_retval = ERROR_RETVAL_SYSFS_FAIL;
+         goto ms_cleanup;
+      }
    }
-   #endif
 
+   #if 0 
    if( mount( NULL, "/dev", "devtmpfs", 0, "" ) ) {
       #ifdef ERRORS
       perror( "Unable to mount one or more special filesystems" );
@@ -102,6 +109,7 @@ int mount_sys( void ) {
          goto ms_cleanup;
       }
    }
+   #endif
 
 ms_cleanup:
 

@@ -27,6 +27,7 @@ divert(0)
 #include <string.h>
 #include <regex.h>
 
+#define CONFIG_STRING_MAX_LEN 255
 #define CONFIG_STRING_ARRAY_MAX_LEN 20
 
 /* = Structures and Types = */
@@ -46,6 +47,9 @@ typedef struct LUKS_VOL {
 
 /* = Macros = */
 
+#define CONFIG_SCRAMBLED_STRING( scrambled_string ) \
+   extern const char* scrambled_string;
+
 #define CONFIG_FREE_STRING_ARRAY( string_array ) \
    while( NULL != string_array[i] ) { \
       free( string_array[i] ); \
@@ -63,9 +67,11 @@ typedef struct LUKS_VOL {
 /* This only supports two devices per array right now, but maybe we'll        *
  * support more later on.                                                     */
 CONFIG_SCR(CONFIG_REGEX_MD_ARRAYS,`[a-zA-Z0-9]*<[a-zA-Z0-9]*|[a-zA-Z0-9]*>')
-CONFIG_SCR(CONFIG_REGEX_STRING_ARRAY,`[a-zA-Z0-9]*')
+CONFIG_SCR(CONFIG_REGEX_STRING_ARRAY,`\\([^|]*\\)')
 
 CONFIG_SCR(CONFIG_SYS_FS_MOUNT,`/sys|/proc|/dev|/dev/pts')
+CONFIG_SCR(CONFIG_SYS_MPOINT_MOUNT,`/sys|/proc|/dev|/dev/pts')
+CONFIG_SCR(CONFIG_SYS_MTYPE_MOUNT,`sysfs|proc|devtmpfs|devpts')
 CONFIG_SCR(CONFIG_SYS_FS_UMOUNT,`/dev/pts|/dev|/proc|/sys')
 CONFIG_SCR(CONFIG_SYS_MPOINT_ROOT,`/mnt/root')
 CONFIG_SCR(CONFIG_SYS_PATH_MAPPER,`/dev/mapper')

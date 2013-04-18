@@ -110,6 +110,9 @@ int main( int argc, char* argv[] ) {
    signal( SIGINT, signal_handler );
    signal( SIGQUIT, signal_handler );
 
+   // XXX
+   mount_sys();
+
    if( 1 == getpid() ) {
       /* We're being called as init, so set the system up. */
       i_retval = mount_sys();
@@ -138,6 +141,9 @@ int main( int argc, char* argv[] ) {
          goto main_cleanup;
       }
    }
+
+   /* TODO: Implement a secondary password to launch a console if defined     *
+    *       for this host.                                                    */
 
    #if 0
    /* Initialize strings, etc. */
@@ -177,7 +183,7 @@ int main( int argc, char* argv[] ) {
       )
    ) {
    #endif
-      i_retval = action_crypt();
+   i_retval = action_crypt();
    #if 0
    #ifdef CONSOLE
    } else if(

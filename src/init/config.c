@@ -1,6 +1,7 @@
 
 #include "config.h"
 
+/*
 const char gac_skey[] = { CONFIG_SKEY };
 
 const char gac_re_md_arrays[] = { CONFIG_REGEX_MD_ARRAYS };
@@ -11,10 +12,12 @@ const char gac_luks_vols[] = { CONFIG_LUKS_VOLS };
 const char gac_net_if[] = { CONFIG_NET_IF };
 const char gac_net_ip[] = { CONFIG_NET_IP };
 const char gac_sys_fs_mount[] = { CONFIG_SYS_FS_MOUNT };
+const char gac_sys_mtype_mount[] = { CONFIG_SYS_MTYPE_MOUNT };
 const char gac_sys_fs_umount[] = { CONFIG_SYS_FS_UMOUNT };
 const char gac_sys_mpoint_root[] = { CONFIG_SYS_MPOINT_ROOT };
 const char gac_sys_path_mapper[] = { CONFIG_SYS_PATH_MAPPER };
 const char gac_command_mdadm[] = { CONFIG_COMMAND_MDADM };
+*/
 
 /* = Configuration Helpers = */
 
@@ -32,7 +35,7 @@ char* config_descramble_string( const char* pc_string_in ) {
       *pc_out;
    int i = 0;
 
-   pc_out = calloc( strlen( pc_string_in ), sizeof( char ) );
+   pc_out = calloc( strlen( pc_string_in ) + 1, sizeof( char ) );
 
    while( '\0' != (c = pc_string_in[i]) ) {
 
@@ -70,14 +73,17 @@ char** config_split_string_array( const char* pc_string_in, char* pc_re_in ) {
 
    ppc_out = calloc( 1, sizeof( char* ) );
    if( !regexec(
-      &s_regex, pc_string_in, CONFIG_STRING_ARRAY_MAX_LEN, as_match, 0
+      &s_regex, pc_string_in, CONFIG_STRING_ARRAY_MAX_LEN, &as_match, 0
    ) ) {
+      printf( "rt: %s\n", pc_string_in );
       for( i = 0 ; CONFIG_STRING_ARRAY_MAX_LEN > i ; i++ ) {
          i_strlen = as_match[i].rm_eo - as_match[i].rm_so;
          if( 1 > i_strlen ) {
             /* Invalid match. */
             break;
          }
+
+         printf( "rd: %d %d\n", as_match[i].rm_so, as_match[i].rm_eo );
 
          /* Add another string to the array. */
          ppc_out = realloc( ppc_out, (i + 1) * sizeof( char* ) );
@@ -90,6 +96,8 @@ char** config_split_string_array( const char* pc_string_in, char* pc_re_in ) {
       /* Add a NULL tag at the end of the array. */
       ppc_out = realloc( ppc_out, (i + 1) * sizeof( char* ) );
       ppc_out[i] = NULL;
+   } else {
+      printf( "BAD REGEX\n" );
    }
 
 cssa_cleanup:
