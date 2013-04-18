@@ -13,7 +13,7 @@ int umount_sys( void ) {
       gac_sys_fs_umount,
       gai_sys_fs_umount
    );
-   ppc_sys_fs = config_split_string_array( pc_sys_fs_string, NULL );
+   ppc_sys_fs = config_split_string_array( pc_sys_fs_string );
 
    while( NULL != ppc_sys_fs[i] ) {
       /* XXX: Handle things keeping e.g. /dev open. */
@@ -23,8 +23,6 @@ int umount_sys( void ) {
          PRINTF_ERROR( "Unable to unmount %s.\n", ppc_sys_fs[i] );
          /* perror( "Unable to unmount one or more special filesystems" ); */
          #endif /* ERRORS */
-         /* i_retval = ERROR_RETVAL_SYSFS_FAIL;
-         goto us_cleanup; */
       }
 
       i++;
@@ -42,77 +40,50 @@ int mount_sys( void ) {
    int i_retval = 0,
       i = 0;
    char* pc_sys_fs_string = NULL,
-      ** ppc_sys_fs = NULL;
+      ** ppc_sys_fs = NULL,
+      * pc_sys_mtype_string = NULL,
+      ** ppc_sys_mtype = NULL;
    struct stat s_dir;
 
    pc_sys_fs_string = config_descramble_string(
       gac_sys_fs_mount,
       gai_sys_fs_mount
    );
-   ppc_sys_fs = config_split_string_array( pc_sys_fs_string, NULL );
+   ppc_sys_fs = config_split_string_array( pc_sys_fs_string );
 
-   printf( "m: %s\n", pc_sys_fs_string );
+   pc_sys_mtype_string = config_descramble_string(
+      gac_sys_mtype_mount,
+      gai_sys_mtype_mount
+   );
+   ppc_sys_mtype = config_split_string_array( pc_sys_mtype_string );
 
    while( NULL != ppc_sys_fs[i] ) {
-
       /* Make sure the mountpoint exists before mounting. */
       i_retval = stat( ppc_sys_fs[i], &s_dir );
       if( -1 == i_retval && ENOENT == errno ) {
          /* Create missing mountpoint. */
          mkdir( ppc_sys_fs[i], 0755 );
       } else {
+         #ifdef ERRORS
          perror( "Unable to determine mountpoint status" );
-         i_retval = ERROR_RETVAL_SYSFS_FAIL;
-         goto ms_cleanup;
+         #endif /* ERRORS */
       }
 
-      i_retval = mount( NULL, ppc_sys_fs[i], "devtmpfs", 0, "" );
+      /* Perform the actual mount. */
+      i_retval = mount( NULL, ppc_sys_fs[i], ppc_sys_mtype[i], 0, "" );
       if( i_retval ) {
          #ifdef ERRORS
          perror( "Unable to mount one or more special filesystems" );
          #endif /* ERRORS */
-         i_retval = ERROR_RETVAL_SYSFS_FAIL;
-         goto ms_cleanup;
       }
+
+      i++;
    }
 
-   #if 0 
-   if( mount( NULL, "/dev", "devtmpfs", 0, "" ) ) {
-      #ifdef ERRORS
-      perror( "Unable to mount one or more special filesystems" );
-      #endif /* ERRORS */
-      i_retval = ERROR_RETVAL_SYSFS_FAIL;
-      goto ms_cleanup;
-   }
-
-   mkdir( "/dev/pts", 0755 );
-
-   if(
-      mount( "devpts", "/dev/pts", "devpts", 0, "" ) ||
-      mount( NULL, "/proc", "proc", 0, "" ) ||
-      mount( NULL, "/sys", "sysfs", 0, "" )
-   ) {
-      #ifdef ERRORS
-      perror( "Unable to mount one or more special filesystems" );
-      #endif /* ERRORS */
-      i_retval = ERROR_RETVAL_SYSFS_FAIL;
-      goto ms_cleanup;
-   } else {
-      if(
-         system( "/sbin/vgscan --mknodes" ) ||
-         system( "/sbin/vgchange -a ay" )
-      ) {
-         #ifdef ERRORS
-         perror( "Unable to start LVM" );
-         #endif /* ERRORS */
-         /* TODO: Being unable to start LVM isn't always a fatal error. */
-         i_retval = ERROR_RETVAL_LVM_FAIL;
-         goto ms_cleanup;
-      }
-   }
-   #endif
-
-ms_cleanup:
+   CONFIG_FREE_STRING_ARRAY( ppc_sys_fs );
+   CONFIG_FREE_STRING_ARRAY( ppc_sys_mtype );
+   free( pc_sys_fs_string );
+   free( pc_sys_mtype_string );
 
    return i_retval;
 }
@@ -120,15 +91,12 @@ ms_cleanup:
 /* Purpose: Setup /dev/md devices if any exist.                               */
 /* Return: 0 on success, 1 on failure.                                        */
 int mount_mds( void ) {
-   int i_md_iter,
-      i_dev_iter,
-      i_command_mdadm_strlen = 0,
-      i_md_count,
+   int i_command_mdadm_strlen = 0,
       i_retval = 0,
       i_stdout_temp = 0,
       i_stderr_temp = 0,
       i_null_fd = 0,
-      i, j;
+      i;
    char* pc_template_mdadm = NULL,
       * pc_command_mdadm = NULL;
    MD_ARRAY* ps_md_arrays,
@@ -144,43 +112,44 @@ int mount_mds( void ) {
 
    /* Iterate through the host-specific data structure and create md arrays.  */
    while( NULL != ps_md_array_iter ) {
-      /* FIXME */
-
-      #if 0
-      /* XXX: Get rid of that fudge factor five. */
-      i_command_mdadm_strlen = strlen( pc_template_mdadm ) + 5;
       i_command_mdadm_strlen += strlen( "/dev/" ) + 1; /* +1 for the space. */
       i_command_mdadm_strlen += strlen( ps_md_array_iter->name );
 
       /* Allocate a string to hold the finished command. */
-      for(
-         i_dev_iter = 0 ;
-         ps_md_array_iter->devs_count > i_dev_iter ;
-         i_dev_iter++
-      ) {
+      i = 0;
+      while( NULL != ps_md_array_iter->devs[i] ) {
+         
          /* Add +1 for the space to precede each dev. */
-         i_command_mdadm_strlen +=
-            strlen( ps_md_array_iter->devs[i_dev_iter] ) + 1;
+         i_command_mdadm_strlen += strlen( ps_md_array_iter->devs[i] ) + 1;
+
+         i++;
       }
       pc_command_mdadm = calloc( i_command_mdadm_strlen, sizeof( char ) );
 
-      /* Concat each device onto the command template. */
+      /*
       strcpy( pc_command_mdadm, pc_template_mdadm );
       strcat( pc_command_mdadm, "/dev/" );
       strcat( pc_command_mdadm, ps_md_array_iter->name );
       strcat( pc_command_mdadm, " " );
-      for(
-         i_dev_iter = 0 ;
-         ps_md_array_iter->devs_count > i_dev_iter ;
-         i_dev_iter++
-      ) {
-         strcat( pc_command_mdadm, ps_md_array_iter->devs[i_dev_iter] );
-         if( ps_md_array_iter->devs_count > i_dev_iter - 1 ) {
-            strcat( pc_command_mdadm, " " );
-         }
+      i = 0;
+      while( NULL != ps_md_array_iter->devs[i] ) {
+         strcat( pc_command_mdadm, ps_md_array_iter->devs[i] );
+         strcat( pc_command_mdadm, " " );
       }
 
       i_command_mdadm_strlen += strlen( ps_md_array_iter->name );
+      */
+
+      /* Concat each device onto the command template. */
+      /* TODO: Tweak this to allow more than two MD devices. */
+      sprintf(
+         pc_command_mdadm,
+         "%s %s %s %s",
+         pc_template_mdadm,
+         ps_md_array_iter->name,
+         ps_md_array_iter->devs[0],
+         ps_md_array_iter->devs[1]
+      );
 
       /* Close stdout/stderr if we're squelching errors. */
       #ifndef ERRORS
@@ -210,13 +179,13 @@ int mount_mds( void ) {
          #endif /* ERRORS */
          goto mm_cleanup;
       }
-      #endif
+
+      ps_md_array_iter = ps_md_array_iter->next;
    }
 
 mm_cleanup:
 
    /* Perform cleanup, destroy the information structure. */
-   free( pc_command_mdadm );
    free( pc_template_mdadm );
    config_free_md_arrays( ps_md_arrays );
 

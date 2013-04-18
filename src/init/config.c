@@ -29,65 +29,42 @@ char* config_descramble_string( const char* pc_string_in, const int i_len_in ) {
 }
 
 /* Notes:   The string passed as pc_string_in should be free()ed afterwards.  */
-char** config_split_string_array( const char* pc_string_in, char* pc_re_in ) {
-   regex_t s_regex;
-   regmatch_t as_match[CONFIG_STRING_ARRAY_MAX_LEN];
+char** config_split_string_array( const char* pc_string_in ) {
    char** ppc_out = NULL,
-      c_free_re_on_exit = 0;
-   int i, j,
-      i_strlen;
+      c;
+   int i = 0, j = 0,
+      i_string_count = 0;
 
-   if( NULL == pc_re_in ) {
-      /* No regex was specified, so use the standard string-splitting regex. */
-      pc_re_in = config_descramble_string(
-         gac_re_string_array,
-         gai_re_string_array
-      );
-      c_free_re_on_exit = 1;
-   }
-
-   /* Initialize regex engine. */
-   if( regcomp( &s_regex, pc_re_in, 0 ) ) {
-      #ifdef ERRORS
-      perror( "Unable to compile string-splitting regex" );
-      #endif /* ERRORS */
-      goto cssa_cleanup;
-   }
-
+   /* At the very least, we'll end up with an empty array (just a NULL). */
    ppc_out = calloc( 1, sizeof( char* ) );
-   if( !regexec(
-      &s_regex, pc_string_in, CONFIG_STRING_ARRAY_MAX_LEN, &as_match, 0
-   ) ) {
-      printf( "rt: %s\n", pc_string_in );
-      for( i = 0 ; CONFIG_STRING_ARRAY_MAX_LEN > i ; i++ ) {
-         i_strlen = as_match[i].rm_eo - as_match[i].rm_so;
-         if( 1 > i_strlen ) {
-            /* Invalid match. */
-            break;
-         }
 
-         printf( "rd: %d %d\n", as_match[i].rm_so, as_match[i].rm_eo );
+   while( '\0' != (c = pc_string_in[i]) ) {
 
-         /* Add another string to the array. */
-         ppc_out = realloc( ppc_out, (i + 1) * sizeof( char* ) );
-         ppc_out[i] = calloc( i_strlen + 1, sizeof( char ) );
-         for( j = 0 ; j < i_strlen ; j++ ) {
-            ppc_out[i][j] = pc_string_in[as_match[i].rm_so + i];
+      if( '|' == c || 0 == i_string_count ) {
+         /* Create a new string in the array (and leave room for the NULL.    *
+          * terminator.                                                       */
+         i_string_count++;
+         ppc_out = realloc( ppc_out, (i_string_count + 1) * sizeof( char* ) );
+         ppc_out[i_string_count - 1] = calloc( 1, sizeof( char ) );
+         j = 0;
+
+         if( '|' == c ) {
+            /* Grab the character after the separator. */
+            c = pc_string_in[++i];
          }
       }
 
-      /* Add a NULL tag at the end of the array. */
-      ppc_out = realloc( ppc_out, (i + 1) * sizeof( char* ) );
-      ppc_out[i] = NULL;
-   } else {
-      printf( "BAD REGEX\n" );
-   }
+      /* Add the grabbed character to the new string. */
+      ppc_out[i_string_count - 1] = realloc(
+         ppc_out[i_string_count - 1],
+         (j + 2) * sizeof( char )
+      );
+      ppc_out[i_string_count - 1][j] = c;
+      ppc_out[i_string_count - 1][j + 1] = '\0';
 
-cssa_cleanup:
-
-   if( c_free_re_on_exit ) {
-      /* Only leave behind what we didn't bring with us. */
-      free( pc_re_in );
+      /* Increment. */
+      i++;
+      j++;
    }
 
    return ppc_out;
@@ -96,41 +73,75 @@ cssa_cleanup:
 /* = Configuration Loaders = */
 
 MD_ARRAY* config_load_md_arrays( void ) {
-   MD_ARRAY* ps_md_arrays_out = NULL,
-      * ps_md_array_iter = NULL;
+   MD_ARRAY* ps_md_arrays = NULL,
+      * ps_md_array_iter = NULL,
+      * ps_md_array_prev = NULL;
    /* TODO: How should we decide the max potential matches? */
-   char* pc_re_md_arrays_outer = NULL,
-      * pc_re_md_arrays_inner = NULL,
-      * pc_md_arrays = NULL;
-   int i_retval,
-      i_strlen,
-      i;
+   char* pc_md_arrays = NULL,
+      * pc_current_field = NULL;
+   int i = 0, j = 0;
 
+   /* `md_arrays',`md1</dev/sda1|/dev/sdb1>md2</dev/sda2|/dev/sdb2>' */
+
+   pc_md_arrays = config_descramble_string( gac_md_arrays, gai_md_arrays );
 
    /* Parse out the arrays and create structs for them. */
+   while( '\0' != pc_md_arrays[i] ) {
+      //if( NULL == pc_current_field ) {
+      if( NULL == ps_md_array_iter ) {
+         if( NULL == ps_md_arrays ) {
+            /* Create the first MD array in the list. */
+            ps_md_arrays = calloc( 1, sizeof( MD_ARRAY ) );
+            ps_md_arrays->name = calloc( 1, sizeof( char ) );
+            ps_md_array_iter = ps_md_arrays;
+         } else {
+         }
+         pc_current_field = ps_md_array_iter->name;
+         j = 0;
+      }
 
-   #if 0
-   //md_arrays = calloc( 1, sizeof( MD_ARRAY ) );
-   for( i = 0 ; host_md_count() > i ; i++ ) {
-      (*md_arrays)[i].name = descramble_create_string( \
-         aac_dev_md_names[i], gi_skey \
-      ); \
-      /* TODO: Allow for md devices with varying count of devs. */ \
-      (*md_arrays)[i].devs_count = host_md_devs_per(); \
-      (*md_arrays)[i].devs = calloc( host_md_devs_per(), sizeof( char* ) ); \
-      for( j = 0 ; host_md_devs_per() > j ; j++ ) { \
-         (*md_arrays)[i].devs[j] = \
-            descramble_create_string( aac_dev_md_devs[i][j], gi_skey ); \
-      } \
+      if( '<' == pc_md_arrays[i] ) {
+         /* Begin collecting a string to split for the dev list. */
+         pc_current_field = calloc( 1, sizeof( char ) );
+         j = 0;
+         i++;
+      }
+
+      if( '>' == pc_md_arrays[i] ) {
+         /* Convert the gathered string into an array of dev names. */
+         ps_md_array_iter->devs = config_split_string_array( pc_current_field );
+         free( pc_current_field );
+
+         if( '\0' != pc_md_arrays[i + 1] ) {
+            /* Add a new MD array to the list and iterate. */
+            ps_md_array_prev = ps_md_array_iter;
+            ps_md_array_iter->next = calloc( 1, sizeof( MD_ARRAY ) );
+            ps_md_array_iter = ps_md_array_iter->next;
+            ps_md_array_iter->name = calloc( 1, sizeof( char ) );
+            pc_current_field = ps_md_array_iter->name;
+
+            /* Move on to the next array or the end of the string. */
+            j = 0;
+            i++;
+            continue;
+         } else {
+            break;
+         }
+      }
+
+      /* Add the grabbed character to the current string. */
+      pc_current_field = realloc( pc_current_field, (j + 2) * sizeof( char ) );
+      pc_current_field[j] = pc_md_arrays[i];
+      pc_current_field[j + 1] = '\0';
+
+      /* Increment. */
+      i++;
+      j++;
    }
-   #endif
 
-clma_cleanup:
-
-   free( pc_re_md_arrays_outer );
-   free( pc_re_md_arrays_inner );
+   free( pc_md_arrays );
    
-   return ps_md_arrays_out;
+   return ps_md_arrays;
 }
 
 void config_free_md_arrays( MD_ARRAY* ps_md_arrays_in ) {
@@ -143,24 +154,4 @@ void config_free_md_arrays( MD_ARRAY* ps_md_arrays_in ) {
       free( ps_md_array_prev );
    }
 }
-
-/* static void config_destroy_string( char** ppc_string_in ) {
-
-} */
-
-#if 0
-void descramble_copy_string( char* dest_in, char* string_in, char* key_in ) {
-}
-
-/* Purpose: Create a dynamic descrambled copy of the given scrambled string.  */
-/* Return: A pointer to the new string. Must be freed manually.               */
-char* descramble_create_string( char* string_in, char* key_in ) {
-   char* pc_out;
-
-   pc_out = calloc( strlen( string_in ), sizeof( char ) );
-   descramble_copy_string( pc_out, string_in, key_in );
-
-   return pc_out;
-}
-#endif
 

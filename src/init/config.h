@@ -6,9 +6,6 @@
 #include <string.h>
 #include <regex.h>
 
-#define CONFIG_STRING_MAX_LEN 255
-#define CONFIG_STRING_ARRAY_MAX_LEN 20
-
 /* = Structures and Types = */
 
 typedef struct MD_ARRAY {
@@ -27,15 +24,17 @@ typedef struct LUKS_VOL {
 /* = Macros = */
 
 #define CONFIG_FREE_STRING_ARRAY( string_array ) \
+   i = 0; \
    while( NULL != string_array[i] ) { \
       free( string_array[i] ); \
+      i++; \
    } \
    free( string_array );
 
 /* = Function Prototypes = */
 
 char* config_descramble_string( const char*, const int );
-char** config_split_string_array( const char*, char* );
+char** config_split_string_array( const char* );
 
 MD_ARRAY* config_load_md_arrays( void );
 void config_free_md_arrays( MD_ARRAY* );

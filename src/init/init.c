@@ -111,7 +111,7 @@ int main( int argc, char* argv[] ) {
    signal( SIGQUIT, signal_handler );
 
    // XXX
-   mount_sys();
+   mount_mds();
 
    if( 1 == getpid() ) {
       /* We're being called as init, so set the system up. */
