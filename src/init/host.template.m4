@@ -18,8 +18,7 @@ char** config_split_string_array( const char*, char* );
 MD_ARRAY* config_load_md_arrays( void );
 void config_free_md_arrays( MD_ARRAY* );
 
-#endif /* SCRAMBLES_H */
-esyscmd(rm TEMPFILE())')
+#endif /* SCRAMBLES_H */')
 divert(0)
 #ifndef SCRAMBLES_H
 #define SCRAMBLES_H
@@ -53,6 +52,12 @@ typedef struct LUKS_VOL {
    } \
    free( string_array );
 
+/* = Key Configuration = */
+
+/* This must occur before ANY strings can be scrambled! */
+
+#define CONFIG_SKEY esyscmd(./scripts/xor.sh -f TEMPFILE() -k)
+
 /* = Generic Configuration = */
 
 /* This only supports two devices per array right now, but maybe we'll        *
@@ -68,4 +73,3 @@ CONFIG_SCR(CONFIG_COMMAND_MDADM,`mdadm --assemble')
 
 /* = Host-Specific Configuration = */
 
-#define CONFIG_SKEY esyscmd(./scripts/xor.sh -f TEMPFILE() -k)

@@ -13,7 +13,7 @@ int umount_sys( void ) {
    char* pc_sys_fs_string = NULL,
       ** ppc_sys_fs = NULL;
 
-   pc_sys_fs_string = config_descramble_string( gac_sys_fs_umount );
+   pc_sys_fs_string = config_descramble_string( &gac_sys_fs_umount );
    ppc_sys_fs = config_split_string_array( pc_sys_fs_string, NULL );
 
    while( NULL != ppc_sys_fs[i] ) {
@@ -246,8 +246,8 @@ int mount_probe_root( void ) {
       goto mpr_cleanup;
    }
 
-   pc_path_mapper = config_descramble_string( gac_sys_path_mapper );
-   pc_root_mountpoint = config_descramble_string( gac_sys_mpoint_root );
+   pc_path_mapper = config_descramble_string( &gac_sys_path_mapper );
+   pc_root_mountpoint = config_descramble_string( &gac_sys_mpoint_root );
 
    /* Try to find an appropriate root device. */
    p_dev_dir = opendir( pc_path_mapper );
