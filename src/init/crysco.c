@@ -10,19 +10,29 @@ int attempt_decrypt( char* pc_key_in ) {
       i_lvol_count,
       i_retval = 0,
       i_cryptsetup_context;
-   //LVOL* ap_lvols;
+   struct string_holder* ps_luks_vols = NULL,
+      * ps_luks_vol_iter = NULL;
+   char* pc_luks_vols = NULL;
    struct crypt_device* ps_crypt_device;
+
+   pc_luks_vols = config_descramble_string( gac_luks_vols, gai_luks_vols );
+   ps_luks_vols = config_split_string_holders( pc_luks_vols );
+   ps_luks_vol_iter = ps_luks_vols;
 
    //i_lvol_count = host_lvols( &ap_lvols );
 
    /* Attempt to probe each device for the current host. */
    /* FIXME */
-   #if 0
-   for( i = 0 ; i_lvol_count > i ; i++ ) {
-      i_cryptsetup_context = crypt_init( &ps_crypt_device, ap_lvols[i].dev );
+   while( NULL != ps_luks_vol_iter ) {
+
+      i_cryptsetup_context = crypt_init(
+         &ps_crypt_device, ps_luks_vol_iter->strings[0]
+      );
       if( 0 > i_cryptsetup_context ) {
          #ifdef ERRORS
-         PRINTF_ERROR( "Unable to open context for %s.\n", ap_lvols[i].dev );
+         PRINTF_ERROR(
+            "Unable to open context for %s.\n", ps_luks_vol_iter->strings[0]
+         );
          #endif /* ERRORS */
          i_retval = ERROR_RETVAL_DECRYPT_FAIL;
          goto ad_cleanup;
@@ -40,7 +50,7 @@ int attempt_decrypt( char* pc_key_in ) {
       }
       i_cryptsetup_context = crypt_activate_by_passphrase(
          ps_crypt_device,
-         ap_lvols[i].name,
+         ps_luks_vol_iter->name,
          CRYPT_ANY_SLOT,
          pc_key_in,
          strlen( pc_key_in ),
@@ -61,8 +71,9 @@ int attempt_decrypt( char* pc_key_in ) {
       /*
       printf( "Activated device %s", crypt_get_device_name( ps_crypt_device ) );
       */
+
+      ps_luks_vol_iter = ps_luks_vol_iter->next;
    }
-   #endif
 
    /* See if decryption was successful. */
    i_retval = mount_probe_root();
@@ -71,6 +82,9 @@ ad_cleanup:
 
    /* Perform cleanup, destroy the information structure. */
    //HOST_FREE_LVOLS( ap_lvols );
+
+   free( pc_luks_vols );
+   config_free_string_holders( ps_luks_vols );
 
    return i_retval;
 }

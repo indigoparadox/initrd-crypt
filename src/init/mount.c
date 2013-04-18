@@ -28,7 +28,7 @@ int umount_sys( void ) {
       i++;
    }
 
-   CONFIG_FREE_STRING_ARRAY( ppc_sys_fs );
+   config_free_string_array( ppc_sys_fs );
    free( pc_sys_fs_string );
 
    return i_retval;
@@ -80,8 +80,8 @@ int mount_sys( void ) {
       i++;
    }
 
-   CONFIG_FREE_STRING_ARRAY( ppc_sys_fs );
-   CONFIG_FREE_STRING_ARRAY( ppc_sys_mtype );
+   config_free_string_array( ppc_sys_fs );
+   config_free_string_array( ppc_sys_mtype );
    free( pc_sys_fs_string );
    free( pc_sys_mtype_string );
 
@@ -98,8 +98,9 @@ int mount_mds( void ) {
       i_null_fd = 0,
       i;
    char* pc_template_mdadm = NULL,
-      * pc_command_mdadm = NULL;
-   MD_ARRAY* ps_md_arrays,
+      * pc_command_mdadm = NULL,
+      * pc_md_arrays = NULL;
+   struct string_holder* ps_md_arrays,
       * ps_md_array_iter;
 
    pc_template_mdadm = config_descramble_string(
@@ -107,7 +108,8 @@ int mount_mds( void ) {
       gai_command_mdadm
    );
    
-   ps_md_arrays = config_load_md_arrays();
+   pc_md_arrays = config_descramble_string( gac_md_arrays, gai_md_arrays );
+   ps_md_arrays = config_split_string_holders( pc_md_arrays );
    ps_md_array_iter = ps_md_arrays;
 
    /* Iterate through the host-specific data structure and create md arrays.  */
@@ -117,10 +119,10 @@ int mount_mds( void ) {
 
       /* Allocate a string to hold the finished command. */
       i = 0;
-      while( NULL != ps_md_array_iter->devs[i] ) {
+      while( NULL != ps_md_array_iter->strings[i] ) {
          
          /* Add +1 for the space to precede each dev. */
-         i_command_mdadm_strlen += strlen( ps_md_array_iter->devs[i] ) + 1;
+         i_command_mdadm_strlen += strlen( ps_md_array_iter->strings[i] ) + 1;
 
          i++;
       }
@@ -147,8 +149,8 @@ int mount_mds( void ) {
          "%s %s %s %s",
          pc_template_mdadm,
          ps_md_array_iter->name,
-         ps_md_array_iter->devs[0],
-         ps_md_array_iter->devs[1]
+         ps_md_array_iter->strings[0],
+         ps_md_array_iter->strings[1]
       );
 
       /* Close stdout/stderr if we're squelching errors. */
@@ -187,7 +189,8 @@ mm_cleanup:
 
    /* Perform cleanup, destroy the information structure. */
    free( pc_template_mdadm );
-   config_free_md_arrays( ps_md_arrays );
+   free( pc_md_arrays );
+   config_free_string_holders( ps_md_arrays );
 
    return i_retval;
 }

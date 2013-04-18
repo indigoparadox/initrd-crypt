@@ -70,55 +70,64 @@ char** config_split_string_array( const char* pc_string_in ) {
    return ppc_out;
 }
 
+void config_free_string_array( char** ppc_string_array_in ) {
+   int i = 0;
+
+   while( NULL != ppc_string_array_in[i] ) {
+      free( ppc_string_array_in[i] );
+      i++;
+   }
+   free( ppc_string_array_in );
+}
+
 /* = Configuration Loaders = */
 
-MD_ARRAY* config_load_md_arrays( void ) {
-   MD_ARRAY* ps_md_arrays = NULL,
-      * ps_md_array_iter = NULL,
-      * ps_md_array_prev = NULL;
-   /* TODO: How should we decide the max potential matches? */
-   char* pc_md_arrays = NULL,
-      * pc_current_field = NULL;
+struct string_holder* config_split_string_holders(
+   const char* pc_string_holders_in
+) {
+   struct string_holder* ps_string_holders = NULL,
+      * ps_string_holder_iter = NULL,
+      * ps_string_holder_prev = NULL;
+   char* pc_current_field = NULL;
    int i = 0, j = 0;
 
    /* `md_arrays',`md1</dev/sda1|/dev/sdb1>md2</dev/sda2|/dev/sdb2>' */
 
-   pc_md_arrays = config_descramble_string( gac_md_arrays, gai_md_arrays );
-
    /* Parse out the arrays and create structs for them. */
-   while( '\0' != pc_md_arrays[i] ) {
-      //if( NULL == pc_current_field ) {
-      if( NULL == ps_md_array_iter ) {
-         if( NULL == ps_md_arrays ) {
+   while( '\0' != pc_string_holders_in[i] ) {
+      if( NULL == ps_string_holder_iter ) {
+         if( NULL == ps_string_holders ) {
             /* Create the first MD array in the list. */
-            ps_md_arrays = calloc( 1, sizeof( MD_ARRAY ) );
-            ps_md_arrays->name = calloc( 1, sizeof( char ) );
-            ps_md_array_iter = ps_md_arrays;
+            ps_string_holders = calloc( 1, sizeof( struct string_holder ) );
+            ps_string_holders->name = calloc( 1, sizeof( char ) );
+            ps_string_holder_iter = ps_string_holders;
          } else {
          }
-         pc_current_field = ps_md_array_iter->name;
+         pc_current_field = ps_string_holder_iter->name;
          j = 0;
       }
 
-      if( '<' == pc_md_arrays[i] ) {
+      if( '<' == pc_string_holders_in[i] ) {
          /* Begin collecting a string to split for the dev list. */
          pc_current_field = calloc( 1, sizeof( char ) );
          j = 0;
          i++;
       }
 
-      if( '>' == pc_md_arrays[i] ) {
+      if( '>' == pc_string_holders_in[i] ) {
          /* Convert the gathered string into an array of dev names. */
-         ps_md_array_iter->devs = config_split_string_array( pc_current_field );
+         ps_string_holder_iter->strings =
+            config_split_string_array( pc_current_field );
          free( pc_current_field );
 
-         if( '\0' != pc_md_arrays[i + 1] ) {
+         if( '\0' != pc_string_holders_in[i + 1] ) {
             /* Add a new MD array to the list and iterate. */
-            ps_md_array_prev = ps_md_array_iter;
-            ps_md_array_iter->next = calloc( 1, sizeof( MD_ARRAY ) );
-            ps_md_array_iter = ps_md_array_iter->next;
-            ps_md_array_iter->name = calloc( 1, sizeof( char ) );
-            pc_current_field = ps_md_array_iter->name;
+            ps_string_holder_prev = ps_string_holder_iter;
+            ps_string_holder_iter->next =
+               calloc( 1, sizeof( struct string_holder ) );
+            ps_string_holder_iter = ps_string_holder_iter->next;
+            ps_string_holder_iter->name = calloc( 1, sizeof( char ) );
+            pc_current_field = ps_string_holder_iter->name;
 
             /* Move on to the next array or the end of the string. */
             j = 0;
@@ -131,7 +140,7 @@ MD_ARRAY* config_load_md_arrays( void ) {
 
       /* Add the grabbed character to the current string. */
       pc_current_field = realloc( pc_current_field, (j + 2) * sizeof( char ) );
-      pc_current_field[j] = pc_md_arrays[i];
+      pc_current_field[j] = pc_string_holders_in[i];
       pc_current_field[j + 1] = '\0';
 
       /* Increment. */
@@ -139,19 +148,17 @@ MD_ARRAY* config_load_md_arrays( void ) {
       j++;
    }
 
-   free( pc_md_arrays );
-   
-   return ps_md_arrays;
+   return ps_string_holders;
 }
 
-void config_free_md_arrays( MD_ARRAY* ps_md_arrays_in ) {
-   MD_ARRAY* ps_md_array_iter = ps_md_arrays_in,
-      * ps_md_array_prev = NULL;
+void config_free_string_holders( struct string_holder* ps_string_holders_in ) {
+   struct string_holder* ps_string_holder_iter = ps_string_holders_in,
+      * ps_string_holder_prev = NULL;
 
-   while( NULL != ps_md_array_iter ) {
-      ps_md_array_prev = ps_md_array_iter;
-      ps_md_array_iter = ps_md_array_iter->next;
-      free( ps_md_array_prev );
+   while( NULL != ps_string_holder_iter ) {
+      ps_string_holder_prev = ps_string_holder_iter;
+      ps_string_holder_iter = ps_string_holder_iter->next;
+      free( ps_string_holder_prev );
    }
 }
 
