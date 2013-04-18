@@ -64,6 +64,8 @@ int cleanup_system( int i_retval_in ) {
       i_retval_in = umount_sys();
    }
 
+   getchar();
+
    /* Execute switchroot on success, reboot on failure. */
    if( !i_retval_in ) {
       /* Switchroot */
@@ -72,8 +74,6 @@ int cleanup_system( int i_retval_in ) {
       /* Reboot */
       reboot( LINUX_REBOOT_CMD_RESTART );
    }
-
-   getchar();
 
    return i_retval_in;
 }
