@@ -1,7 +1,9 @@
 
 IMGDIR = ./image
 DESTDIR := $(shell pwd)/build
-LDVER = 2.15
+# TODO Dynamically determine LD version.
+#LDVER := $(shell ls /lib/ld-*.so | awk 'BEGIN {FS="-"} {print $2}' | cut -c -4)
+LDVER := 2.15
 # TODO: Differentiate between 32-bit and 64-bit ld libs.
 IMGBINSTATIC := bin/busybox sbin/cryptsetup sbin/lvm.static sbin/mdadm 
 IMGBINDYNAMIC := usr/sbin/dropbear lib/ld-linux.so.2 lib/libc.so.6 lib/libcrypt.so.1 lib/libnss_files-$(LDVER).so lib/libnss_files.so.2 lib/libutil.so.1 lib/libz.so.1 lib/ld-$(LDVER).so lib/ld-linux-x86-64.so.2
