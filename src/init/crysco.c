@@ -5,13 +5,13 @@
 
 #ifdef CONSOLE
 int console( void ) {
-   int i_retval = 0;
+   int i_retval = 1;
 
-   /* Just keep spawning a console indefinitely. */
-   /* TODO: Enable a graceful exit to boot the system. */
-   while( 1 ) {
+   /* Respawn the console if it crashes, otherwise reboot. */
+   while( i_retval ) {
       i_retval = system( "/bin/busybox --install && /bin/sh" );
    }
+   i_retval = ERROR_RETVAL_CONSOLE_DONE;
 
    return i_retval;
 }
@@ -154,7 +154,8 @@ int prompt_decrypt( void ) {
       i_key_buffer_size = 1;
       i_key_index = 0;
 
-      if( !i_retval ) {
+      /* Break the loop to boot or reboot on certain errors. */
+      if( ERROR_RETVAL_CONSOLE_DONE == i_retval || !i_retval ) {
          break;
       }
 

@@ -40,13 +40,11 @@ int cleanup_system( int i_retval_in ) {
    done */
    #endif /* NET */
 
-   /* Prepare the system to load the "real" init. */
+   /* Prepare the system to load the "real" init (or reboot). */
    if( !i_retval_in ) {
       i_retval_in = mount_probe_usr();
    }
-   if( !i_retval_in ) {
-      i_retval_in = umount_sys();
-   }
+   umount_sys();
 
    /* Execute switchroot on success, reboot on failure. */
    if( !i_retval_in ) {
