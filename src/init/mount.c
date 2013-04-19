@@ -1,102 +1,117 @@
 
+#include "config_extern.h"
+
 #include "mount.h"
 
-extern const int cgi_config_sys_fs_count;
-
+/* Notes: pc_sys_fs_string format is mount_point<block_device|fs_type>        */
 int umount_sys( void ) {
-   int i_retval = 0,
-      i;
-   char** ppc_sys_fs = NULL;
+   int i_retval = 0;
+   char* pc_sys_fs_string = NULL;
+   struct string_holder* ps_sys_fs = NULL,
+      * ps_sys_fs_iter = NULL,
+      * ps_sys_fs_prev = NULL;
 
-   ppc_sys_fs = config_sys_fs();
+   /* Unpack the FS information. */
+   pc_sys_fs_string = config_descramble_string(
+      gac_sys_fs_mount,
+      gai_sys_fs_mount
+   );
+   ps_sys_fs = config_split_string_holders( pc_sys_fs_string );
+   ps_sys_fs_iter = ps_sys_fs;
 
-   for( i = cgi_config_sys_fs_count - 1 ; 0 <= i ; i-- ) {
-      /* XXX: Handle things keeping e.g. /dev open. */
-      i_retval = umount2( ppc_sys_fs[i], MNT_FORCE );
+   /* Find the last device in the list. */
+   while( NULL != ps_sys_fs_iter ) {
+      ps_sys_fs_prev = ps_sys_fs_iter;
+      ps_sys_fs_iter = ps_sys_fs_iter->next;
+   }
+   ps_sys_fs_iter = ps_sys_fs_prev;
+
+   /* Dismount the devices in the reverse order in which they were mounted. */
+   while( 1 ) {
+      /* TODO: Handle things keeping e.g. /dev open. */
+      i_retval = umount2( ps_sys_fs_iter->name, MNT_FORCE );
       if( i_retval ) {
          #ifdef ERRORS
-         PRINTF_ERROR( "Unable to unmount %s.\n", ppc_sys_fs[i] );
+         PRINTF_ERROR( "Unable to unmount %s.\n", ps_sys_fs_iter->name );
          /* perror( "Unable to unmount one or more special filesystems" ); */
          #endif /* ERRORS */
-         /* i_retval = ERROR_RETVAL_SYSFS_FAIL;
-         goto us_cleanup; */
+      }
+
+      /* Iterate. */
+      if( ps_sys_fs == ps_sys_fs_iter ) {
+         /* We're at the head, so quit. */
+         break;
+      } else {
+         /* Find the previous device in the list. */
+         ps_sys_fs_prev = ps_sys_fs_iter;
+         ps_sys_fs_iter = ps_sys_fs;
+         while( ps_sys_fs_iter->next != ps_sys_fs_prev ) {
+            ps_sys_fs_iter = ps_sys_fs_iter->next;
+         }
       }
    }
-
-us_cleanup:
-
-   CONFIG_STRINGLIST_FREE( ppc_sys_fs, cgi_config_sys_fs_count );
 
    return i_retval;
 }
 
 /* Purpose: Prepare system mounts for a minimally functioning system.         */
 /* Return: 0 on success, 1 on failure.                                        */
+/* Notes: pc_sys_fs_string format is mount_point<block_device|fs_type>        */
 int mount_sys( void ) {
    int i_retval = 0;
-
-   #if 0
-      i;
-   char** ppc_sys_fs = NULL;
+   char* pc_sys_fs_string = NULL;
+   struct string_holder* ps_sys_fs = NULL,
+      * ps_sys_fs_iter = NULL;
    struct stat s_dir;
 
-   ppc_sys_fs = config_sys_fs();
+   /* Unpack the FS information. */
+   pc_sys_fs_string = config_descramble_string(
+      gac_sys_fs_mount,
+      gai_sys_fs_mount
+   );
+   ps_sys_fs = config_split_string_holders( pc_sys_fs_string );
+   ps_sys_fs_iter = ps_sys_fs;
 
-   for( i = 0 ; cgi_config_sys_fs_count > 0 ; i++ ) {
-      i_retval = stat( ppc_sys_fs[i], &s_dir );
+   while( NULL != ps_sys_fs_iter ) {
+
+      /* Make sure the mountpoint exists before mounting. */
+      i_retval = stat( ps_sys_fs_iter->name, &s_dir );
       if( -1 == i_retval && ENOENT == errno ) {
          /* Create missing mountpoint. */
-         mkdir( ppc_sys_fs[i], 0755 );
+         mkdir( ps_sys_fs_iter->name, 0755 );
+      }
+
+      /* Perform the actual mount. */
+      if( !strcmp( "none", ps_sys_fs_iter->strings[0] ) ) {
+         /* No block device specified. */
+         i_retval = mount(
+            NULL,
+            ps_sys_fs_iter->name,
+            ps_sys_fs_iter->strings[1],
+            0,
+            ""
+         );
       } else {
-         perror( "Unable to determine mountpoint status" );
-         i_retval = ERROR_RETVAL_SYSFS_FAIL;
-         goto ms_cleanup;
+         i_retval = mount(
+            ps_sys_fs_iter->strings[0],
+            ps_sys_fs_iter->name,
+            ps_sys_fs_iter->strings[1],
+            0,
+            ""
+         );
       }
 
-      i_retval = mount( NULL, "/dev", "devtmpfs", 0, "" ) ) {
-      #ifdef ERRORS
-      perror( "Unable to mount one or more special filesystems" );
-      #endif /* ERRORS */
-      i_retval = ERROR_RETVAL_SYSFS_FAIL;
-      goto ms_cleanup;
-   }
-   #endif
-
-   if( mount( NULL, "/dev", "devtmpfs", 0, "" ) ) {
-      #ifdef ERRORS
-      perror( "Unable to mount one or more special filesystems" );
-      #endif /* ERRORS */
-      i_retval = ERROR_RETVAL_SYSFS_FAIL;
-      goto ms_cleanup;
-   }
-
-   mkdir( "/dev/pts", 0755 );
-
-   if(
-      mount( "devpts", "/dev/pts", "devpts", 0, "" ) ||
-      mount( NULL, "/proc", "proc", 0, "" ) ||
-      mount( NULL, "/sys", "sysfs", 0, "" )
-   ) {
-      #ifdef ERRORS
-      perror( "Unable to mount one or more special filesystems" );
-      #endif /* ERRORS */
-      i_retval = ERROR_RETVAL_SYSFS_FAIL;
-      goto ms_cleanup;
-   } else {
-      if(
-         system( "/sbin/vgscan --mknodes" ) ||
-         system( "/sbin/vgchange -a ay" )
-      ) {
+      if( i_retval ) {
          #ifdef ERRORS
-         perror( "Unable to start LVM" );
+         perror( "Unable to mount one or more special filesystems" );
          #endif /* ERRORS */
-         /* TODO: Being unable to start LVM isn't always a fatal error. */
-         i_retval = ERROR_RETVAL_LVM_FAIL;
-         goto ms_cleanup;
       }
+
+      ps_sys_fs_iter = ps_sys_fs_iter->next;
    }
 
-ms_cleanup:
+   free( pc_sys_fs_string );
+   config_free_string_holders( ps_sys_fs );
 
    return i_retval;
 }
@@ -104,61 +119,70 @@ ms_cleanup:
 /* Purpose: Setup /dev/md devices if any exist.                               */
 /* Return: 0 on success, 1 on failure.                                        */
 int mount_mds( void ) {
-   int i_md_iter,
-      i_dev_iter,
-      i_command_mdadm_strlen = 0,
-      i_md_count,
+   int i_command_mdadm_strlen = 0,
       i_retval = 0,
       i_stdout_temp = 0,
       i_stderr_temp = 0,
       i_null_fd = 0,
-      i, j;
+      i;
    char* pc_template_mdadm = NULL,
-      * pc_command_mdadm = NULL;
-   MD_ARRAY* ap_md_arrays;
+      /* * pc_command_mdadm = NULL, */
+      * pc_md_arrays = NULL,
+      /* FIXME: Give this constant a meaningful name. Or work out effective   *
+      *        dynamic allocation.                                            */
+      ac_command_mdadm[255];
+   struct string_holder* ps_md_arrays,
+      * ps_md_array_iter;
 
-   pc_template_mdadm = command_mdadm();
+   pc_template_mdadm = config_descramble_string(
+      gac_command_mdadm,
+      gai_command_mdadm
+   );
    
-   i_md_count = host_md_arrays( &ap_md_arrays );
+   pc_md_arrays = config_descramble_string( gac_md_arrays, gai_md_arrays );
+   ps_md_arrays = config_split_string_holders( pc_md_arrays );
+   ps_md_array_iter = ps_md_arrays;
 
    /* Iterate through the host-specific data structure and create md arrays.  */
-   for( i_md_iter = 0 ; i_md_count > i_md_iter ; i_md_iter++ ) {
-      /* printf( "%s\n", bdata( ap_md_arrays[i_md_iter].name ) ); */
-
-      /* XXX: Get rid of that fudge factor five. */
-      i_command_mdadm_strlen = strlen( pc_template_mdadm ) + 5;
+   while( NULL != ps_md_array_iter ) {
       i_command_mdadm_strlen += strlen( "/dev/" ) + 1; /* +1 for the space. */
-      i_command_mdadm_strlen += strlen( ap_md_arrays[i_md_iter].name );
+      i_command_mdadm_strlen += strlen( ps_md_array_iter->name );
 
+      #if 0
       /* Allocate a string to hold the finished command. */
-      for(
-         i_dev_iter = 0 ;
-         ap_md_arrays[i_md_iter].devs_count > i_dev_iter ;
-         i_dev_iter++
-      ) {
+      i = 0;
+      while( NULL != ps_md_array_iter->strings[i] ) {
+         
          /* Add +1 for the space to precede each dev. */
-         i_command_mdadm_strlen +=
-            strlen( ap_md_arrays[i_md_iter].devs[i_dev_iter] ) + 1;
+         i_command_mdadm_strlen += strlen( ps_md_array_iter->strings[i] ) + 1;
+
+         i++;
       }
       pc_command_mdadm = calloc( i_command_mdadm_strlen, sizeof( char ) );
 
-      /* Concat each device onto the command template. */
       strcpy( pc_command_mdadm, pc_template_mdadm );
       strcat( pc_command_mdadm, "/dev/" );
-      strcat( pc_command_mdadm, ap_md_arrays[i_md_iter].name );
+      strcat( pc_command_mdadm, ps_md_array_iter->name );
       strcat( pc_command_mdadm, " " );
-      for(
-         i_dev_iter = 0 ;
-         ap_md_arrays[i_md_iter].devs_count > i_dev_iter ;
-         i_dev_iter++
-      ) {
-         strcat( pc_command_mdadm, ap_md_arrays[i_md_iter].devs[i_dev_iter] );
-         if( ap_md_arrays[i_md_iter].devs_count > i_dev_iter - 1 ) {
-            strcat( pc_command_mdadm, " " );
-         }
+      i = 0;
+      while( NULL != ps_md_array_iter->devs[i] ) {
+         strcat( pc_command_mdadm, ps_md_array_iter->devs[i] );
+         strcat( pc_command_mdadm, " " );
       }
 
-      i_command_mdadm_strlen += strlen( ap_md_arrays[i_md_iter].name );
+      i_command_mdadm_strlen += strlen( ps_md_array_iter->name );
+      #endif
+
+      /* Concat each device onto the command template. */
+      /* TODO: Tweak this to allow more than two MD devices. */
+      sprintf(
+         ac_command_mdadm,
+         "%s %s %s %s",
+         pc_template_mdadm,
+         ps_md_array_iter->name,
+         ps_md_array_iter->strings[0],
+         ps_md_array_iter->strings[1]
+      );
 
       /* Close stdout/stderr if we're squelching errors. */
       #ifndef ERRORS
@@ -169,7 +193,7 @@ int mount_mds( void ) {
       dup2( i_null_fd, 2 );
       #endif /* ERRORS */
 
-      i_retval = system( pc_command_mdadm );
+      i_retval = system( ac_command_mdadm );
 
       /* Restore stdout/stderr. */
       #ifndef ERRORS
@@ -178,22 +202,28 @@ int mount_mds( void ) {
       close( i_null_fd );
       #endif /* ERRORS */
 
-      free( pc_command_mdadm );
+      /* free( pc_command_mdadm ); */
+      
+      printf( "%s\n", ac_command_mdadm );
 
       if( i_retval ) {
          #ifdef ERRORS
          PRINTF_ERROR(
-            "There was a problem starting %s.\n", ap_md_arrays[i_md_iter].name 
+            "There was a problem starting %s.\n", ps_md_array_iter->name 
          );
          #endif /* ERRORS */
          goto mm_cleanup;
       }
+
+      ps_md_array_iter = ps_md_array_iter->next;
    }
 
 mm_cleanup:
 
    /* Perform cleanup, destroy the information structure. */
-   HOST_FREE_MD_ARRAYS( ap_md_arrays );
+   free( pc_template_mdadm );
+   free( pc_md_arrays );
+   config_free_string_holders( ps_md_arrays );
 
    return i_retval;
 }
@@ -221,7 +251,8 @@ int mount_probe_root( void ) {
    regex_t s_regex;
    int i_retval = 0;
    char* pc_root_dev = NULL,
-      * pc_mapper_path = NULL,
+      * pc_path_mapper = NULL,
+      * pc_path_mapper_s = NULL,
       * pc_root_mountpoint = NULL;
 
    /* Initialize strings, etc. */
@@ -233,20 +264,30 @@ int mount_probe_root( void ) {
       goto mpr_cleanup;
    }
 
-   pc_mapper_path = config_mapper_path();
-   pc_root_mountpoint = config_root_mountpoint();
+   pc_path_mapper = config_descramble_string(
+      gac_sys_path_mapper,
+      gai_sys_path_mapper
+   );
+   pc_path_mapper_s = config_descramble_string(
+      gac_sys_path_mapper_s,
+      gai_sys_path_mapper_s
+   );
+   pc_root_mountpoint = config_descramble_string(
+      gac_sys_mpoint_root,
+      gai_sys_mpoint_root
+   );
 
    /* Try to find an appropriate root device. */
-   p_dev_dir = opendir( "/dev/mapper" );
+   p_dev_dir = opendir( pc_path_mapper );
    if( NULL != p_dev_dir ) {
       while( (p_dev_entry = readdir( p_dev_dir )) ) {
          if( !regexec( &s_regex, p_dev_entry->d_name, 0, NULL, 0 ) ) {
             /* Create the root dev string. */
             pc_root_dev = calloc(
-               strlen( pc_mapper_path ) + strlen( p_dev_entry->d_name ),
+               strlen( pc_path_mapper ) + strlen( p_dev_entry->d_name ),
                sizeof( char )
             );
-            sprintf( pc_root_dev, pc_mapper_path, p_dev_entry->d_name );
+            sprintf( pc_root_dev, pc_path_mapper_s, p_dev_entry->d_name );
             break;
          }
       }
@@ -287,7 +328,8 @@ mpr_cleanup:
    /* Cleanup. */
    regfree( &s_regex );
    free( pc_root_dev );
-   free( pc_mapper_path );
+   free( pc_path_mapper );
+   free( pc_path_mapper_s );
    free( pc_root_mountpoint );
 
    return i_retval;

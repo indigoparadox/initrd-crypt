@@ -1,14 +1,39 @@
 
-CFLAGS = -Wall -O3
-LDFLAGS = -static -lcryptsetup -ldevmapper -ludev -luuid -lgcrypt -lgpg-error -lrt
+LIBS = -static -lcryptsetup -ldevmapper -ludev -luuid -lgcrypt -lgpg-error -lrt
+ifeq ($(RELEASE),release)
+	# Release
+	# Things like CONSOLE and NET can be defined in individual host configs.
+	CFLAGS := -Wall -O3
+else
+	# Debug
+	CFLAGS := -DDEBUG -DNET -DERRORS -DCONSOLE -Wall -O3 -g
+endif
+OBJS = config.o init.o mount.o crysco.o
+BIN = init
+ALLDEPS := init
+ifeq ($(RELEASE),release)
+	ALLDEPS += strip
+endif
 
-all: init
+all: $(ALLDEPS)
 
-init: host.o init.o mount.o crysco.o scrambles.o genstrings.o
-	$(CC) -o $@ $^ $(LDFLAGS)
+init: $(OBJS)
+	# What a useless error message. This is such a crude way to block it out. Is
+	# there a better way? None of the -W flags seem to cover it.
+	$(CC) -o $(BIN) $^ $(LIBS) 2>&1 | grep -v "warning: Using .* in statically linked applications" | grep -v "libudev.a" | cat
 
-release: init
-	strip init
+strip:
+	strip $(BIN)
+
+config.o: config.c
+	cat config_base.template.m4 \
+		config.template.m4 \
+		../../examples/test.h.m4 | m4 > config_base.h
+	cat config_extern.template.m4 \
+		config.template.m4 \
+		../../examples/test.h.m4 | m4 > config_extern.h
+	$(CC) $(CFLAGS) -o $@ -c config.c
+	rm srand
 
 # = Generic Utility Definitions =
 
@@ -17,7 +42,6 @@ release: init
 
 clean:
 	find -name "*.o" -exec rm {} \;
-	rm host.h
-	rm host.c
-	rm init
+	find -name "config_*.h" -exec rm {} \;
+	find -name "init" -type f -exec rm {} \;
 

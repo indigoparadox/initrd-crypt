@@ -10,9 +10,10 @@
 #include <regex.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <errno.h>
+#include <linux/reboot.h>
 
-#include "genstrings.h"
-#include "host.h"
+#include "config.h"
 #include "error.h"
 
 /* = Function Prototypes = */

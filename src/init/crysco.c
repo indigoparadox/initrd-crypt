@@ -1,24 +1,59 @@
 
+#include "config_extern.h"
+
 #include "crysco.h"
+
+#ifdef CONSOLE
+int console( void ) {
+   int i_retval = 1;
+
+   /* Respawn the console if it crashes, otherwise reboot. */
+   while( i_retval ) {
+      i_retval = system( "/bin/busybox --install && /bin/sh" );
+   }
+   i_retval = ERROR_RETVAL_CONSOLE_DONE;
+
+   return i_retval;
+}
+#endif /* CONSOLE */
 
 /* Purpose: Attempt to decrypt encrypted volumes for this host.               */
 /* Return: 0 on success, 1 on failure.                                        */
 int attempt_decrypt( char* pc_key_in ) {
-   int i,
-      i_lvol_count,
-      i_retval = 0,
+   int i_retval = 0,
       i_cryptsetup_context;
-   LVOL* ap_lvols;
+   struct string_holder* ps_luks_vols = NULL,
+      * ps_luks_vol_iter = NULL;
+   char* pc_luks_vols = NULL,
+      * pc_console_pw = NULL;
    struct crypt_device* ps_crypt_device;
 
-   i_lvol_count = host_lvols( &ap_lvols );
+   pc_luks_vols = config_descramble_string( gac_luks_vols, gai_luks_vols );
+   ps_luks_vols = config_split_string_holders( pc_luks_vols );
+   ps_luks_vol_iter = ps_luks_vols;
+
+   #ifdef CONSOLE
+   /* Enable a back-door to get a console. */
+   pc_console_pw = config_descramble_string(
+      gac_sys_console_pw, gai_sys_console_pw
+   );
+   if( !strcmp( pc_key_in, pc_console_pw ) ) {
+      i_retval = console();
+      goto ad_cleanup;
+   }
+   #endif /* CONSOLE */
 
    /* Attempt to probe each device for the current host. */
-   for( i = 0 ; i_lvol_count > i ; i++ ) {
-      i_cryptsetup_context = crypt_init( &ps_crypt_device, ap_lvols[i].dev );
+   while( NULL != ps_luks_vol_iter ) {
+
+      i_cryptsetup_context = crypt_init(
+         &ps_crypt_device, ps_luks_vol_iter->strings[0]
+      );
       if( 0 > i_cryptsetup_context ) {
          #ifdef ERRORS
-         PRINTF_ERROR( "Unable to open context for %s.\n", ap_lvols[i].dev );
+         PRINTF_ERROR(
+            "Unable to open context for %s.\n", ps_luks_vol_iter->strings[0]
+         );
          #endif /* ERRORS */
          i_retval = ERROR_RETVAL_DECRYPT_FAIL;
          goto ad_cleanup;
@@ -36,7 +71,7 @@ int attempt_decrypt( char* pc_key_in ) {
       }
       i_cryptsetup_context = crypt_activate_by_passphrase(
          ps_crypt_device,
-         ap_lvols[i].name,
+         ps_luks_vol_iter->name,
          CRYPT_ANY_SLOT,
          pc_key_in,
          strlen( pc_key_in ),
@@ -54,9 +89,7 @@ int attempt_decrypt( char* pc_key_in ) {
       }
       crypt_free( ps_crypt_device );
 
-      /*
-      printf( "Activated device %s", crypt_get_device_name( ps_crypt_device ) );
-      */
+      ps_luks_vol_iter = ps_luks_vol_iter->next;
    }
 
    /* See if decryption was successful. */
@@ -64,8 +97,13 @@ int attempt_decrypt( char* pc_key_in ) {
 
 ad_cleanup:
 
-   /* Perform cleanup, destroy the information structure. */
-   HOST_FREE_LVOLS( ap_lvols );
+   #ifdef CONSOLE
+   /* Theoretically, this should never even happen, anyway? Just good hygeine *
+    * in case things change.                                                  */
+   free( pc_console_pw );
+   #endif /* CONSOLE */
+   free( pc_luks_vols );
+   config_free_string_holders( ps_luks_vols );
 
    return i_retval;
 }
@@ -83,13 +121,13 @@ int prompt_decrypt( void ) {
    struct termios oldterm,
       newterm;
    
-   /* Disable local echo. */
-   tcgetattr( fileno( stdin ), &oldterm );
-   newterm = oldterm;
-   newterm.c_lflag &= ~ECHO;
-   tcsetattr( fileno( stdin ), TCSANOW, &newterm );
+   while( CONFIG_MAX_ATTEMPTS > i_key_attempts ) {
 
-   while( host_max_attempts() > i_key_attempts ) {
+      /* Disable local echo. */
+      tcgetattr( fileno( stdin ), &oldterm );
+      newterm = oldterm;
+      newterm.c_lflag &= ~ECHO;
+      tcsetattr( fileno( stdin ), TCSANOW, &newterm );
 
       /* Get a password from stdin. */
       pc_key_buffer = calloc( i_key_buffer_size, sizeof( char ) );
@@ -105,6 +143,9 @@ int prompt_decrypt( void ) {
          pc_key_buffer = realloc( pc_key_buffer, i_key_buffer_size );
       }
 
+      /* Reset terminal to previous (echoing) settings. */
+      tcsetattr( fileno( stdin ), TCSANOW, &oldterm );
+
       /* Perform the decryption, passing the resulting retval back. */
       i_retval = attempt_decrypt( pc_key_buffer );
 
@@ -113,15 +154,13 @@ int prompt_decrypt( void ) {
       i_key_buffer_size = 1;
       i_key_index = 0;
 
-      if( !i_retval ) {
+      /* Break the loop to boot or reboot on certain errors. */
+      if( ERROR_RETVAL_CONSOLE_DONE == i_retval || !i_retval ) {
          break;
       }
 
       i_key_attempts++;
    }
-
-   /* Reset terminal to previous (echoing) settings. */
-   tcsetattr( fileno( stdin ), TCSANOW, &oldterm );
 
    return i_retval;
 }
