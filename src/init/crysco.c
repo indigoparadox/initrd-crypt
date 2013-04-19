@@ -1,7 +1,7 @@
 
-#include "crysco.h"
-
 #include "config_extern.h"
+
+#include "crysco.h"
 
 #ifdef CONSOLE
 int console( void ) {
@@ -10,7 +10,7 @@ int console( void ) {
    /* Just keep spawning a console indefinitely. */
    /* TODO: Enable a graceful exit to boot the system. */
    while( 1 ) {
-      system( "/bin/busybox --install && /bin/sh" );
+      i_retval = system( "/bin/busybox --install && /bin/sh" );
    }
 
    return i_retval;
@@ -20,9 +20,7 @@ int console( void ) {
 /* Purpose: Attempt to decrypt encrypted volumes for this host.               */
 /* Return: 0 on success, 1 on failure.                                        */
 int attempt_decrypt( char* pc_key_in ) {
-   int i,
-      i_lvol_count,
-      i_retval = 0,
+   int i_retval = 0,
       i_cryptsetup_context;
    struct string_holder* ps_luks_vols = NULL,
       * ps_luks_vol_iter = NULL;

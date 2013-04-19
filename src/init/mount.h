@@ -11,6 +11,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <linux/reboot.h>
 
 #include "config.h"
 #include "error.h"

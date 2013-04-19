@@ -8,6 +8,8 @@
 #include <termios.h>
 #include <unistd.h>
 #include <libcryptsetup.h>
+#include <sys/reboot.h>
+#include <linux/reboot.h>
 
 #include "config.h"
 #include "mount.h"

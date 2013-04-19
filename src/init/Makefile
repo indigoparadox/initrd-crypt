@@ -6,7 +6,7 @@ ifeq ($(RELEASE),release)
 	CFLAGS := -Wall -O3
 else
 	# Debug
-	CFLAGS := -DNET -DERRORS -DCONSOLE -Wall -O3 -g
+	CFLAGS := -DDEBUG -DNET -DERRORS -DCONSOLE -Wall -O3 -g
 endif
 OBJS = config.o init.o mount.o crysco.o
 BIN = init
@@ -18,7 +18,9 @@ endif
 all: $(ALLDEPS)
 
 init: $(OBJS)
-	$(CC) -o $(BIN) $^ $(LIBS)
+	# What a useless error message. This is such a crude way to block it out. Is
+	# there a better way? None of the -W flags seem to cover it.
+	$(CC) -o $(BIN) $^ $(LIBS) 2>&1 | grep -v "warning: Using .* in statically linked applications" | grep -v "libudev.a" | cat
 
 strip:
 	strip $(BIN)

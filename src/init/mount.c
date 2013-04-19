@@ -1,12 +1,11 @@
 
-#include "mount.h"
-
 #include "config_extern.h"
+
+#include "mount.h"
 
 /* Notes: pc_sys_fs_string format is mount_point<block_device|fs_type>        */
 int umount_sys( void ) {
-   int i_retval = 0,
-      i = 0;
+   int i_retval = 0;
    char* pc_sys_fs_string = NULL;
    struct string_holder* ps_sys_fs = NULL,
       * ps_sys_fs_iter = NULL,
@@ -59,8 +58,7 @@ int umount_sys( void ) {
 /* Return: 0 on success, 1 on failure.                                        */
 /* Notes: pc_sys_fs_string format is mount_point<block_device|fs_type>        */
 int mount_sys( void ) {
-   int i_retval = 0,
-      i = 0;
+   int i_retval = 0;
    char* pc_sys_fs_string = NULL;
    struct string_holder* ps_sys_fs = NULL,
       * ps_sys_fs_iter = NULL;
@@ -204,7 +202,6 @@ int mount_mds( void ) {
       close( i_null_fd );
       #endif /* ERRORS */
 
-      /* FIXME: Crash.? XXX */
       /* free( pc_command_mdadm ); */
       
       printf( "%s\n", ac_command_mdadm );

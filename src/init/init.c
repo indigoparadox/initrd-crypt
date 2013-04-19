@@ -1,9 +1,7 @@
 
 #include <stdio.h>
 #include <unistd.h>
-#include <regex.h>
 #include <signal.h>
-#include <linux/reboot.h>
 
 #include "config.h"
 
@@ -22,20 +20,6 @@ int action_crypt( void ) {
    /* Get the user password. */
    return prompt_decrypt();
 }
-
-#ifdef CONSOLE
-int action_console( void ) {
-   int i_retval = 0;
-
-   /* Just keep spawning a console indefinitely. */
-   /* TODO: Enable a graceful exit to boot the system. */
-   while( 1 ) {
-      system( "/bin/busybox --install && /bin/sh" );
-   }
-
-   return i_retval;
-}
-#endif /* CONSOLE */
 
 /* Purpose: Tidy up the system and prepare/enact the "real" boot process.     *
  *          This should only be called from init/pid 1.                       */
@@ -56,10 +40,7 @@ int cleanup_system( int i_retval_in ) {
    done */
    #endif /* NET */
 
-   getchar();
-
    /* Prepare the system to load the "real" init. */
-   /* XXX: One of these is crashing now? */
    if( !i_retval_in ) {
       i_retval_in = mount_probe_usr();
    }
@@ -69,11 +50,18 @@ int cleanup_system( int i_retval_in ) {
 
    /* Execute switchroot on success, reboot on failure. */
    if( !i_retval_in ) {
+      #ifdef DEBUG
+      printf( "Boot ready.\n" );
+      getchar();
+      #endif /* DEBUG */
+
       /* Switchroot */
       execv( ac_command_switch_root[0], ac_command_switch_root );
    } else {
-      printf( "Insufficient data.\n" );
+      #ifdef DEBUG
+      printf( "Boot failed.\n" );
       getchar();
+      #endif /* DEBUG */
 
       /* Reboot */
       reboot( LINUX_REBOOT_CMD_RESTART );

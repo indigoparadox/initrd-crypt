@@ -5,9 +5,6 @@
 
 /* = Configuration Helpers = */
 
-/* Notes:   This function is for internal use within this module only.        *
- *          Properties should be accessed through a specialized configuration *
- *          loader function defined below.                                    */
 static char config_descramble_char( char x_in, char y_in ) {
    return ~((x_in & y_in) | (~x_in & ~y_in));
 }
@@ -90,8 +87,6 @@ struct string_holder* config_split_string_holders(
       * ps_string_holder_prev = NULL;
    char* pc_current_field = NULL;
    int i = 0, j = 0;
-
-   /* `md_arrays',`md1</dev/sda1|/dev/sdb1>md2</dev/sda2|/dev/sdb2>' */
 
    /* Parse out the arrays and create structs for them. */
    while( '\0' != pc_string_holders_in[i] ) {
