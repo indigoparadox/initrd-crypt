@@ -1,6 +1,6 @@
 
 LDFLAGS = -static -lcryptsetup -ldevmapper -ludev -luuid -lgcrypt -lgpg-error -lrt
-CFLAGS := -DERRORS -Wall -O3 -g
+CFLAGS := -DERRORS -DCONSOLE -Wall -O3 -g
 OBJS = config.o init.o mount.o crysco.o
 BIN = init
 

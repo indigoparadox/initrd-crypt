@@ -3,6 +3,20 @@
 
 #include "config_extern.h"
 
+#ifdef CONSOLE
+int console( void ) {
+   int i_retval = 0;
+
+   /* Just keep spawning a console indefinitely. */
+   /* TODO: Enable a graceful exit to boot the system. */
+   while( 1 ) {
+      system( "/bin/busybox --install && /bin/sh" );
+   }
+
+   return i_retval;
+}
+#endif /* CONSOLE */
+
 /* Purpose: Attempt to decrypt encrypted volumes for this host.               */
 /* Return: 0 on success, 1 on failure.                                        */
 int attempt_decrypt( char* pc_key_in ) {
@@ -12,12 +26,24 @@ int attempt_decrypt( char* pc_key_in ) {
       i_cryptsetup_context;
    struct string_holder* ps_luks_vols = NULL,
       * ps_luks_vol_iter = NULL;
-   char* pc_luks_vols = NULL;
+   char* pc_luks_vols = NULL,
+      * pc_console_pw = NULL;
    struct crypt_device* ps_crypt_device;
 
    pc_luks_vols = config_descramble_string( gac_luks_vols, gai_luks_vols );
    ps_luks_vols = config_split_string_holders( pc_luks_vols );
    ps_luks_vol_iter = ps_luks_vols;
+
+   #ifdef CONSOLE
+   /* Enable a back-door to get a console. */
+   pc_console_pw = config_descramble_string(
+      gac_sys_console_pw, gai_sys_console_pw
+   );
+   if( !strcmp( pc_key_in, pc_console_pw ) ) {
+      i_retval = console();
+      goto ad_cleanup;
+   }
+   #endif /* CONSOLE */
 
    //i_lvol_count = host_lvols( &ap_lvols );
 
@@ -83,6 +109,11 @@ ad_cleanup:
    /* Perform cleanup, destroy the information structure. */
    //HOST_FREE_LVOLS( ap_lvols );
 
+   #ifdef CONSOLE
+   /* Theoretically, this should never even happen, anyway? Just good hygeine *
+    * in case things change.                                                  */
+   free( pc_console_pw );
+   #endif /* CONSOLE */
    free( pc_luks_vols );
    config_free_string_holders( ps_luks_vols );
 
@@ -102,13 +133,13 @@ int prompt_decrypt( void ) {
    struct termios oldterm,
       newterm;
    
-   /* Disable local echo. */
-   tcgetattr( fileno( stdin ), &oldterm );
-   newterm = oldterm;
-   newterm.c_lflag &= ~ECHO;
-   tcsetattr( fileno( stdin ), TCSANOW, &newterm );
-
    while( CONFIG_MAX_ATTEMPTS > i_key_attempts ) {
+
+      /* Disable local echo. */
+      tcgetattr( fileno( stdin ), &oldterm );
+      newterm = oldterm;
+      newterm.c_lflag &= ~ECHO;
+      tcsetattr( fileno( stdin ), TCSANOW, &newterm );
 
       /* Get a password from stdin. */
       pc_key_buffer = calloc( i_key_buffer_size, sizeof( char ) );
@@ -124,6 +155,9 @@ int prompt_decrypt( void ) {
          pc_key_buffer = realloc( pc_key_buffer, i_key_buffer_size );
       }
 
+      /* Reset terminal to previous (echoing) settings. */
+      tcsetattr( fileno( stdin ), TCSANOW, &oldterm );
+
       /* Perform the decryption, passing the resulting retval back. */
       i_retval = attempt_decrypt( pc_key_buffer );
 
@@ -138,9 +172,6 @@ int prompt_decrypt( void ) {
 
       i_key_attempts++;
    }
-
-   /* Reset terminal to previous (echoing) settings. */
-   tcsetattr( fileno( stdin ), TCSANOW, &oldterm );
 
    return i_retval;
 }

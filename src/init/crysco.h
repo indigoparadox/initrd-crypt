@@ -15,6 +15,9 @@
 
 /* = Function Prototypes = */
 
+#ifdef CONSOLE
+int console( void );
+#endif /* CONSOLE */
 int attempt_decrypt( char* );
 int prompt_decrypt( void );
 
