@@ -14,10 +14,10 @@ release: $(OBJS)
 config.o: config.c
 	cat config_base.template.m4 \
 		config.template.m4 \
-		/home/alexanderfb/Downloads/hosts/test.h.m4 | m4 > config_base.h
+		../../examples/test.h.m4 | m4 > config_base.h
 	cat config_extern.template.m4 \
 		config.template.m4 \
-		/home/alexanderfb/Downloads/hosts/test.h.m4 | m4 > config_extern.h
+		../../examples/test.h.m4 | m4 > config_extern.h
 	$(CC) $(CFLAGS) -o $@ -c config.c
 	rm srand
 
