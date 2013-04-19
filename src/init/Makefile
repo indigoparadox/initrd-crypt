@@ -1,14 +1,26 @@
 
-LDFLAGS = -static -lcryptsetup -ldevmapper -ludev -luuid -lgcrypt -lgpg-error -lrt
-CFLAGS := -DERRORS -DCONSOLE -Wall -O3 -g
+LIBS = -static -lcryptsetup -ldevmapper -ludev -luuid -lgcrypt -lgpg-error -lrt
+ifeq ($(RELEASE),release)
+	# Release
+	# Things like CONSOLE and NET can be defined in individual host configs.
+	CFLAGS := -Wall -O3
+else
+	# Debug
+	CFLAGS := -DNET -DERRORS -DCONSOLE -Wall -O3 -g
+endif
 OBJS = config.o init.o mount.o crysco.o
 BIN = init
+ALLDEPS := init
+ifeq ($(RELEASE),release)
+	ALLDEPS += strip
+endif
 
-debug: $(OBJS)
-	$(CC) -o $(BIN) $^ $(LDFLAGS)
+all: $(ALLDEPS)
 
-release: $(OBJS)
-	$(CC) -o $(BIN) $^ $(LDFLAGS)
+init: $(OBJS)
+	$(CC) -o $(BIN) $^ $(LIBS)
+
+strip:
 	strip $(BIN)
 
 config.o: config.c
@@ -28,7 +40,6 @@ config.o: config.c
 
 clean:
 	find -name "*.o" -exec rm {} \;
-	#rm config_base.h
-	#rm config_extern.h
-	#rm init
+	find -name "config_*.h" -exec rm {} \;
+	find -name "init" -type f -exec rm {} \;
 
