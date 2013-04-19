@@ -3,86 +3,117 @@
 
 #include "config_extern.h"
 
+/* Notes: pc_sys_fs_string format is mount_point<block_device|fs_type>        */
 int umount_sys( void ) {
    int i_retval = 0,
       i = 0;
-   char* pc_sys_fs_string = NULL,
-      ** ppc_sys_fs = NULL;
+   char* pc_sys_fs_string = NULL;
+   struct string_holder* ps_sys_fs = NULL,
+      * ps_sys_fs_iter = NULL,
+      * ps_sys_fs_prev = NULL;
 
+   /* Unpack the FS information. */
    pc_sys_fs_string = config_descramble_string(
-      gac_sys_fs_umount,
-      gai_sys_fs_umount
+      gac_sys_fs_mount,
+      gai_sys_fs_mount
    );
-   ppc_sys_fs = config_split_string_array( pc_sys_fs_string );
+   ps_sys_fs = config_split_string_holders( pc_sys_fs_string );
+   ps_sys_fs_iter = ps_sys_fs;
 
-   while( NULL != ppc_sys_fs[i] ) {
+   /* Find the last device in the list. */
+   while( NULL != ps_sys_fs_iter ) {
+      ps_sys_fs_prev = ps_sys_fs_iter;
+      ps_sys_fs_iter = ps_sys_fs_iter->next;
+   }
+   ps_sys_fs_iter = ps_sys_fs_prev;
+
+   /* Dismount the devices in the reverse order in which they were mounted. */
+   while( 1 ) {
       /* TODO: Handle things keeping e.g. /dev open. */
-      i_retval = umount2( ppc_sys_fs[i], MNT_FORCE );
+      i_retval = umount2( ps_sys_fs_iter->name, MNT_FORCE );
       if( i_retval ) {
          #ifdef ERRORS
-         PRINTF_ERROR( "Unable to unmount %s.\n", ppc_sys_fs[i] );
+         PRINTF_ERROR( "Unable to unmount %s.\n", ps_sys_fs_iter->name );
          /* perror( "Unable to unmount one or more special filesystems" ); */
          #endif /* ERRORS */
       }
 
-      i++;
+      /* Iterate. */
+      if( ps_sys_fs == ps_sys_fs_iter ) {
+         /* We're at the head, so quit. */
+         break;
+      } else {
+         /* Find the previous device in the list. */
+         ps_sys_fs_prev = ps_sys_fs_iter;
+         ps_sys_fs_iter = ps_sys_fs;
+         while( ps_sys_fs_iter->next != ps_sys_fs_prev ) {
+            ps_sys_fs_iter = ps_sys_fs_iter->next;
+         }
+      }
    }
-
-   config_free_string_array( ppc_sys_fs );
-   free( pc_sys_fs_string );
 
    return i_retval;
 }
 
 /* Purpose: Prepare system mounts for a minimally functioning system.         */
 /* Return: 0 on success, 1 on failure.                                        */
+/* Notes: pc_sys_fs_string format is mount_point<block_device|fs_type>        */
 int mount_sys( void ) {
    int i_retval = 0,
       i = 0;
-   char* pc_sys_fs_string = NULL,
-      ** ppc_sys_fs = NULL,
-      * pc_sys_mtype_string = NULL,
-      ** ppc_sys_mtype = NULL;
+   char* pc_sys_fs_string = NULL;
+   struct string_holder* ps_sys_fs = NULL,
+      * ps_sys_fs_iter = NULL;
    struct stat s_dir;
 
+   /* Unpack the FS information. */
    pc_sys_fs_string = config_descramble_string(
       gac_sys_fs_mount,
       gai_sys_fs_mount
    );
-   ppc_sys_fs = config_split_string_array( pc_sys_fs_string );
+   ps_sys_fs = config_split_string_holders( pc_sys_fs_string );
+   ps_sys_fs_iter = ps_sys_fs;
 
-   pc_sys_mtype_string = config_descramble_string(
-      gac_sys_mtype_mount,
-      gai_sys_mtype_mount
-   );
-   ppc_sys_mtype = config_split_string_array( pc_sys_mtype_string );
+   while( NULL != ps_sys_fs_iter ) {
 
-   while( NULL != ppc_sys_fs[i] ) {
       /* Make sure the mountpoint exists before mounting. */
-      i_retval = stat( ppc_sys_fs[i], &s_dir );
+      i_retval = stat( ps_sys_fs_iter->name, &s_dir );
       if( -1 == i_retval && ENOENT == errno ) {
          /* Create missing mountpoint. */
-         mkdir( ppc_sys_fs[i], 0755 );
+         mkdir( ps_sys_fs_iter->name, 0755 );
       }
 
       /* Perform the actual mount. */
-      i_retval = mount( NULL, ppc_sys_fs[i], ppc_sys_mtype[i], 0, "" );
+      if( !strcmp( "none", ps_sys_fs_iter->strings[0] ) ) {
+         /* No block device specified. */
+         i_retval = mount(
+            NULL,
+            ps_sys_fs_iter->name,
+            ps_sys_fs_iter->strings[1],
+            0,
+            ""
+         );
+      } else {
+         i_retval = mount(
+            ps_sys_fs_iter->strings[0],
+            ps_sys_fs_iter->name,
+            ps_sys_fs_iter->strings[1],
+            0,
+            ""
+         );
+      }
+
       if( i_retval ) {
          #ifdef ERRORS
          perror( "Unable to mount one or more special filesystems" );
          #endif /* ERRORS */
       }
 
-      /* XXX */
-      printf( "%s %s\n", ppc_sys_fs[i], ppc_sys_mtype[i] );
-
-      i++;
+      ps_sys_fs_iter = ps_sys_fs_iter->next;
    }
 
-   config_free_string_array( ppc_sys_fs );
-   config_free_string_array( ppc_sys_mtype );
    free( pc_sys_fs_string );
-   free( pc_sys_mtype_string );
+   config_free_string_holders( ps_sys_fs );
 
    return i_retval;
 }
@@ -97,7 +128,7 @@ int mount_mds( void ) {
       i_null_fd = 0,
       i;
    char* pc_template_mdadm = NULL,
-      //* pc_command_mdadm = NULL,
+      /* * pc_command_mdadm = NULL, */
       * pc_md_arrays = NULL,
       /* FIXME: Give this constant a meaningful name. Or work out effective   *
       *        dynamic allocation.                                            */
@@ -130,9 +161,7 @@ int mount_mds( void ) {
          i++;
       }
       pc_command_mdadm = calloc( i_command_mdadm_strlen, sizeof( char ) );
-      #endif
 
-      /*
       strcpy( pc_command_mdadm, pc_template_mdadm );
       strcat( pc_command_mdadm, "/dev/" );
       strcat( pc_command_mdadm, ps_md_array_iter->name );
@@ -144,7 +173,7 @@ int mount_mds( void ) {
       }
 
       i_command_mdadm_strlen += strlen( ps_md_array_iter->name );
-      */
+      #endif
 
       /* Concat each device onto the command template. */
       /* TODO: Tweak this to allow more than two MD devices. */
@@ -176,7 +205,7 @@ int mount_mds( void ) {
       #endif /* ERRORS */
 
       /* FIXME: Crash.? XXX */
-      //free( pc_command_mdadm );
+      /* free( pc_command_mdadm ); */
       
       printf( "%s\n", ac_command_mdadm );
 

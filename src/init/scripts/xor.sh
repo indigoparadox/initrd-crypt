@@ -1,6 +1,6 @@
 #!/bin/bash
 
-KEY_LEN=128
+KEY_LEN=512
 
 while [ "$1" ]; do
    case "$1" in

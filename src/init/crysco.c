@@ -45,10 +45,7 @@ int attempt_decrypt( char* pc_key_in ) {
    }
    #endif /* CONSOLE */
 
-   //i_lvol_count = host_lvols( &ap_lvols );
-
    /* Attempt to probe each device for the current host. */
-   /* FIXME */
    while( NULL != ps_luks_vol_iter ) {
 
       i_cryptsetup_context = crypt_init(
@@ -94,10 +91,6 @@ int attempt_decrypt( char* pc_key_in ) {
       }
       crypt_free( ps_crypt_device );
 
-      /*
-      printf( "Activated device %s", crypt_get_device_name( ps_crypt_device ) );
-      */
-
       ps_luks_vol_iter = ps_luks_vol_iter->next;
    }
 
@@ -105,9 +98,6 @@ int attempt_decrypt( char* pc_key_in ) {
    i_retval = mount_probe_root();
 
 ad_cleanup:
-
-   /* Perform cleanup, destroy the information structure. */
-   //HOST_FREE_LVOLS( ap_lvols );
 
    #ifdef CONSOLE
    /* Theoretically, this should never even happen, anyway? Just good hygeine *
