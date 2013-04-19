@@ -13,13 +13,14 @@ image: init
 	$(foreach var,$(IMGBINSTATIC),cp -L /$(var) $(TMP)/initrd/$(var);)
 	$(foreach var,$(IMGBINDYNAMIC),cp -L /$(var) $(TMP)/initrd/$(var);)
 	cp src/init/init $(TMP)/initrd/init
+	if [ -f $(DESTDIR)/initrd.gz ]; then rm $(DESTDIR)/initrd.gz; fi
 	cd $(TMP)/initrd && find . | cpio -ov --format=newc > $(DESTDIR)/initrd
 	gzip $(DESTDIR)/initrd
 	rm -rf $(TMP)
 
 init:
 	# TODO: Make release/debug distinction here.
-	cd src/init && make clean && make
+	cd src/init && make clean && make debug
 
 .PHONY: init image
 

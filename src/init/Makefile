@@ -1,6 +1,6 @@
 
 LDFLAGS = -static -lcryptsetup -ldevmapper -ludev -luuid -lgcrypt -lgpg-error -lrt
-CFLAGS := -Wall -O3 -g
+CFLAGS := -DERRORS -Wall -O3 -g
 OBJS = config.o init.o mount.o crysco.o
 BIN = init
 
@@ -28,7 +28,7 @@ config.o: config.c
 
 clean:
 	find -name "*.o" -exec rm {} \;
-	rm config_base.h
-	rm config_extern.h
-	rm init
+	#rm config_base.h
+	#rm config_extern.h
+	#rm init
 

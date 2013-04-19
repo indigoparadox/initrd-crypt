@@ -63,10 +63,6 @@ int mount_sys( void ) {
       if( -1 == i_retval && ENOENT == errno ) {
          /* Create missing mountpoint. */
          mkdir( ppc_sys_fs[i], 0755 );
-      } else {
-         #ifdef ERRORS
-         perror( "Unable to determine mountpoint status" );
-         #endif /* ERRORS */
       }
 
       /* Perform the actual mount. */
@@ -76,6 +72,9 @@ int mount_sys( void ) {
          perror( "Unable to mount one or more special filesystems" );
          #endif /* ERRORS */
       }
+
+      /* XXX */
+      printf( "%s %s\n", ppc_sys_fs[i], ppc_sys_mtype[i] );
 
       i++;
    }
@@ -98,8 +97,11 @@ int mount_mds( void ) {
       i_null_fd = 0,
       i;
    char* pc_template_mdadm = NULL,
-      * pc_command_mdadm = NULL,
-      * pc_md_arrays = NULL;
+      //* pc_command_mdadm = NULL,
+      * pc_md_arrays = NULL,
+      /* FIXME: Give this constant a meaningful name. Or work out effective   *
+      *        dynamic allocation.                                            */
+      ac_command_mdadm[255];
    struct string_holder* ps_md_arrays,
       * ps_md_array_iter;
 
@@ -117,6 +119,7 @@ int mount_mds( void ) {
       i_command_mdadm_strlen += strlen( "/dev/" ) + 1; /* +1 for the space. */
       i_command_mdadm_strlen += strlen( ps_md_array_iter->name );
 
+      #if 0
       /* Allocate a string to hold the finished command. */
       i = 0;
       while( NULL != ps_md_array_iter->strings[i] ) {
@@ -127,6 +130,7 @@ int mount_mds( void ) {
          i++;
       }
       pc_command_mdadm = calloc( i_command_mdadm_strlen, sizeof( char ) );
+      #endif
 
       /*
       strcpy( pc_command_mdadm, pc_template_mdadm );
@@ -145,7 +149,7 @@ int mount_mds( void ) {
       /* Concat each device onto the command template. */
       /* TODO: Tweak this to allow more than two MD devices. */
       sprintf(
-         pc_command_mdadm,
+         ac_command_mdadm,
          "%s %s %s %s",
          pc_template_mdadm,
          ps_md_array_iter->name,
@@ -162,7 +166,7 @@ int mount_mds( void ) {
       dup2( i_null_fd, 2 );
       #endif /* ERRORS */
 
-      i_retval = system( pc_command_mdadm );
+      i_retval = system( ac_command_mdadm );
 
       /* Restore stdout/stderr. */
       #ifndef ERRORS
@@ -171,7 +175,10 @@ int mount_mds( void ) {
       close( i_null_fd );
       #endif /* ERRORS */
 
-      free( pc_command_mdadm );
+      /* FIXME: Crash.? XXX */
+      //free( pc_command_mdadm );
+      
+      printf( "%s\n", ac_command_mdadm );
 
       if( i_retval ) {
          #ifdef ERRORS
@@ -219,6 +226,7 @@ int mount_probe_root( void ) {
    int i_retval = 0;
    char* pc_root_dev = NULL,
       * pc_path_mapper = NULL,
+      * pc_path_mapper_s = NULL,
       * pc_root_mountpoint = NULL;
 
    /* Initialize strings, etc. */
@@ -233,6 +241,10 @@ int mount_probe_root( void ) {
    pc_path_mapper = config_descramble_string(
       gac_sys_path_mapper,
       gai_sys_path_mapper
+   );
+   pc_path_mapper_s = config_descramble_string(
+      gac_sys_path_mapper_s,
+      gai_sys_path_mapper_s
    );
    pc_root_mountpoint = config_descramble_string(
       gac_sys_mpoint_root,
@@ -249,7 +261,7 @@ int mount_probe_root( void ) {
                strlen( pc_path_mapper ) + strlen( p_dev_entry->d_name ),
                sizeof( char )
             );
-            sprintf( pc_root_dev, pc_path_mapper, p_dev_entry->d_name );
+            sprintf( pc_root_dev, pc_path_mapper_s, p_dev_entry->d_name );
             break;
          }
       }
@@ -291,6 +303,7 @@ mpr_cleanup:
    regfree( &s_regex );
    free( pc_root_dev );
    free( pc_path_mapper );
+   free( pc_path_mapper_s );
    free( pc_root_mountpoint );
 
    return i_retval;

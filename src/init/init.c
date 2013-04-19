@@ -56,15 +56,16 @@ int cleanup_system( int i_retval_in ) {
    done */
    #endif /* NET */
 
+   getchar();
+
    /* Prepare the system to load the "real" init. */
+   /* XXX: One of these is crashing now. */
    if( !i_retval_in ) {
       i_retval_in = mount_probe_usr();
    }
    if( !i_retval_in ) {
       i_retval_in = umount_sys();
    }
-
-   getchar();
 
    /* Execute switchroot on success, reboot on failure. */
    if( !i_retval_in ) {

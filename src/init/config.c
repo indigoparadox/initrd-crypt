@@ -95,14 +95,11 @@ struct string_holder* config_split_string_holders(
 
    /* Parse out the arrays and create structs for them. */
    while( '\0' != pc_string_holders_in[i] ) {
-      if( NULL == ps_string_holder_iter ) {
-         if( NULL == ps_string_holders ) {
-            /* Create the first MD array in the list. */
-            ps_string_holders = calloc( 1, sizeof( struct string_holder ) );
-            ps_string_holders->name = calloc( 1, sizeof( char ) );
-            ps_string_holder_iter = ps_string_holders;
-         } else {
-         }
+      if( NULL == ps_string_holder_iter && NULL == ps_string_holders ) {
+         /* Create the first MD array in the list. */
+         ps_string_holders = calloc( 1, sizeof( struct string_holder ) );
+         ps_string_holders->name = calloc( 1, sizeof( char ) );
+         ps_string_holder_iter = ps_string_holders;
          pc_current_field = ps_string_holder_iter->name;
          j = 0;
       }
@@ -120,12 +117,16 @@ struct string_holder* config_split_string_holders(
             config_split_string_array( pc_current_field );
          free( pc_current_field );
 
-         if( '\0' != pc_string_holders_in[i + 1] ) {
+         if(
+            '\0' != pc_string_holders_in[i + 1] &&
+            10 != pc_string_holders_in[i + 1] /* Newline/linefeed. */
+         ) {
             /* Add a new MD array to the list and iterate. */
             ps_string_holder_prev = ps_string_holder_iter;
             ps_string_holder_iter->next =
                calloc( 1, sizeof( struct string_holder ) );
             ps_string_holder_iter = ps_string_holder_iter->next;
+            ps_string_holder_iter->next = NULL;
             ps_string_holder_iter->name = calloc( 1, sizeof( char ) );
             pc_current_field = ps_string_holder_iter->name;
 
