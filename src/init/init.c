@@ -1,7 +1,16 @@
 
+#include "config_extern.h"
+
 #include <stdio.h>
 #include <unistd.h>
 #include <signal.h>
+#ifdef NET
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <net/if.h>
+#include <arpa/inet.h>
+#endif /* NET */
 
 #include "config.h"
 
@@ -68,6 +77,86 @@ int cleanup_system( int i_retval_in ) {
    return i_retval_in;
 }
 
+#ifdef NET
+int setup_network( void ) {
+   int i_socket,
+      i_retval;
+   struct ifreq s_ifreq;
+   struct sockaddr_in s_addr;
+   char* pc_net_if = NULL,
+      * pc_net_ip = NULL;
+
+   /* Initialize. */
+   memset( &s_ifreq, '\0', sizeof( struct ifreq ) );
+   memset( &s_addr, '\0', sizeof( struct sockaddr_in ) );
+   pc_net_if = config_descramble_string( gac_net_if, gai_net_if );
+   pc_net_ip = config_descramble_string( gac_net_ip, gai_net_ip );
+
+   /* Open a socket. */
+   if( 0 > (i_socket = socket( AF_INET, SOCK_DGRAM, 0 )) ) {
+      #ifdef ERRORS
+      perror( "Error opening network socket" );
+      #endif /* ERRORS */
+      i_retval = ERROR_RETVAL_NET_FAIL;
+      goto sn_cleanup;
+   }
+
+   /* Set the IP. */
+   s_ifreq.ifr_addr.sa_family = AF_INET;
+   strncpy( s_ifreq.ifr_name, pc_net_if, IFNAMSIZ - 1 );
+   s_addr.sin_addr.s_addr = inet_addr( pc_net_ip );
+   memcpy( &s_ifreq.ifr_addr, &s_addr, sizeof( struct sockaddr ) );
+
+   if( 0 > (i_retval = ioctl( i_socket, SIOCGIFADDR, (char*)&s_ifreq )) ) {
+      #ifdef ERRORS
+      perror( "Error executing ioctl on socket" );
+      #endif /* ERRORS */
+      goto sn_cleanup;
+   }
+
+   if( 0 > (i_retval = ioctl( i_socket, SIOCGIFFLAGS, (char*)&s_ifreq )) ) {
+      #ifdef ERRORS
+      perror( "Error executing ioctl on socket" );
+      #endif /* ERRORS */
+      goto sn_cleanup;
+   }
+
+   s_ifreq.ifr_flags |= IFF_UP | IFF_RUNNING;
+
+   if( 0 > (i_retval = ioctl( i_socket, SIOCGIFFLAGS, (char*)&s_ifreq )) ) {
+      #ifdef ERRORS
+      perror( "Error executing ioctl on socket" );
+      #endif /* ERRORS */
+      goto sn_cleanup;
+   }
+
+   #ifdef DEBUG
+   /* Verify and display address. */
+   if( 0 > (i_retval = ioctl( i_socket, SIOCGIFADDR, &s_ifreq )) ) {
+      #ifdef ERRORS
+      perror( "Error executing ioctl on socket" );
+      #endif /* ERRORS */
+      goto sn_cleanup;
+   }
+
+   printf(
+      "Network: %s %s\n",
+      s_ifreq.ifr_name,
+      inet_ntoa( ((struct sockaddr_in*)&s_ifreq.ifr_addr)->sin_addr )
+   );
+   #endif /* DEBUG */
+   
+sn_cleanup:
+
+   close( i_socket );
+
+   free( pc_net_if );
+   free( pc_net_ip );
+
+   return i_retval;
+}
+#endif /* NET */
+
 void signal_handler( int i_signum_in ) {
    if( SIGTERM == i_signum_in && 1 == getpid()  ) {
       /* A successful decryption occurred on a remote terminal, so shut       *
@@ -87,6 +176,9 @@ int main( int argc, char* argv[] ) {
    int i,
       i_retval = 0;
 
+   // XXX
+   i_retval = setup_network();
+
    /* Protect ourselves against simple potential bypasses. */
    signal( SIGTERM, signal_handler );
    signal( SIGINT, signal_handler );
@@ -102,6 +194,12 @@ int main( int argc, char* argv[] ) {
       if( i_retval ) {
          goto main_cleanup;
       }
+      #ifdef NET
+      i_retval = setup_network();
+      if( i_retval ) {
+         goto main_cleanup;
+      }
+      #endif /* NET */
 
       /* TODO: Load any directed kernel modules. */
 
