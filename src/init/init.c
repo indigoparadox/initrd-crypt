@@ -19,6 +19,10 @@
 
 #define CMDLINE_MAX_SIZE 255
 
+#ifdef SERIAL
+int gi_serial_port = 0;
+#endif /* SERIAL */
+
 /* Purpose: Wait until the main devices are decrypted and start the system.   */
 int action_crypt( void ) {
 
@@ -48,6 +52,10 @@ int cleanup_system( int i_retval_in ) {
       ifconfig $DEV_ITER down 2>/dev/null
    done */
    #endif /* NET */
+
+   #ifdef SERIAL
+   /* TODO: Try to stop serial port. */
+   #endif /* SERIAL */
 
    /* Prepare the system to load the "real" init (or reboot). */
    if( !i_retval_in ) {
@@ -201,6 +209,10 @@ int main( int argc, char* argv[] ) {
       }
       #endif /* NET */
 
+      #ifdef SERIAL
+
+      #endif /* SERIAL */
+
       /* TODO: Load any directed kernel modules. */
 
       /* TODO: Start the splash screen (deprecated). */
@@ -218,6 +230,8 @@ int main( int argc, char* argv[] ) {
          goto main_cleanup;
       }
    }
+
+   mount_mds();
 
    /* Start the challenge! */
    i_retval = action_crypt();

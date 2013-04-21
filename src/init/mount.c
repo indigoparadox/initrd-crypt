@@ -121,9 +121,6 @@ int mount_sys( void ) {
 int mount_mds( void ) {
    int i_command_mdadm_strlen = 0,
       i_retval = 0,
-      i_stdout_temp = 0,
-      i_stderr_temp = 0,
-      i_null_fd = 0,
       i;
    char* pc_template_mdadm = NULL,
       /* * pc_command_mdadm = NULL, */
@@ -186,25 +183,19 @@ int mount_mds( void ) {
 
       /* Close stdout/stderr if we're squelching errors. */
       #ifndef ERRORS
-      dup2( STDOUT_FILENO, i_stdout_temp );
-      dup2( STDERR_FILENO, i_stderr_temp );
-      i_null_fd = open( "/dev/null", O_WRONLY );
-      dup2( i_null_fd, STDOUT_FILENO );
-      dup2( i_null_fd, STDERR_FILENO );
+      console_hide();
       #endif /* ERRORS */
 
       i_retval = system( ac_command_mdadm );
 
       /* Restore stdout/stderr. */
       #ifndef ERRORS
-      dup2( i_stdout_temp, STDOUT_FILENO );
-      dup2( i_stderr_temp, STDERR_FILENO );
-      close( i_null_fd );
+      console_show();
       #endif /* ERRORS */
 
       /* free( pc_command_mdadm ); */
       
-      printf( "%s\n", ac_command_mdadm );
+      /* printf( "%s\n", ac_command_mdadm ); */
 
       if( i_retval ) {
          #ifdef ERRORS
@@ -303,8 +294,7 @@ int mount_probe_root( void ) {
       /* Make sure we picked up a root device. */
       if( NULL == pc_root_dev ) {
          #ifdef ERRORS
-         /* TODO: Create a macro/function to print errors to stderr. */
-         printf( "Unable to find root device.\n" );
+         PRINTF_ERROR( "Unable to find root device.\n" );
          #endif /* ERRORS */
          i_retval = ERROR_RETVAL_ROOT_FAIL;
          goto mpr_cleanup;
@@ -321,8 +311,6 @@ int mount_probe_root( void ) {
    /* Attempt to mount the selected root device. */
    i = 0;
    while( NULL != ppc_fs_types[i] ) {
-      printf( "%s\n", ppc_fs_types[i] );
-
       i_retval = mount(
          pc_root_dev, pc_root_mountpoint, ppc_fs_types[i], MS_RDONLY, ""
       );

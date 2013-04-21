@@ -9,12 +9,11 @@
 #include <dirent.h>
 #include <regex.h>
 #include <unistd.h>
-#include <fcntl.h>
-#include <errno.h>
 #include <linux/reboot.h>
 
 #include "config.h"
 #include "error.h"
+#include "console.h"
 
 /* = Function Prototypes = */
 
