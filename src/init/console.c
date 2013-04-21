@@ -60,3 +60,17 @@ void console_echo_on( void ) {
    }
 }
 
+#ifdef CONSOLE
+int console_shell( void ) {
+   int i_retval = 1;
+
+   /* Respawn the console if it crashes, otherwise reboot. */
+   while( i_retval ) {
+      i_retval = system( "/bin/busybox --install && /bin/sh" );
+   }
+   i_retval = ERROR_RETVAL_CONSOLE_DONE;
+
+   return i_retval;
+}
+#endif /* CONSOLE */
+
