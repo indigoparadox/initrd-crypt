@@ -6,7 +6,7 @@ ifeq ($(RELEASE),release)
 	CFLAGS := -Wall -O3
 else
 	# Debug
-	CFLAGS := -DDEBUG -DNET -DERRORS -DCONSOLE -Wall -O3 -g
+	CFLAGS := -DDEBUG -DERRORS -Wall -O3 -g
 endif
 OBJS = config.o init.o mount.o crysco.o
 BIN = init
