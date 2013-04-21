@@ -40,3 +40,23 @@ void console_show ( void ) {
    gi_null_fd = -1;
 }
 
+void console_echo_off( void ) {
+   struct termios s_term_current;
+
+   tcgetattr( fileno( stdin ), &s_term_current );
+   if( s_term_current.c_lflag & ECHO ) {
+      s_term_current.c_lflag &= ~ECHO;
+      tcsetattr( fileno( stdin ), TCSANOW, &s_term_current );
+   }
+}
+
+void console_echo_on( void ) {
+   struct termios s_term_current;
+
+   tcgetattr( fileno( stdin ), &s_term_current );
+   if( !(s_term_current.c_lflag & ECHO) ) {
+      s_term_current.c_lflag &= ECHO;
+      tcsetattr( fileno( stdin ), TCSANOW, &s_term_current );
+   }
+}
+

@@ -5,7 +5,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <termios.h>
 #include <unistd.h>
 #include <libcryptsetup.h>
 #include <sys/reboot.h>

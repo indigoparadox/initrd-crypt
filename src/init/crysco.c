@@ -118,16 +118,11 @@ int prompt_decrypt( void ) {
       i_key_index = 0,
       i_key_attempts = 0,
       i_retval = 0;
-   struct termios oldterm,
-      newterm;
    
    while( CONFIG_MAX_ATTEMPTS > i_key_attempts ) {
 
-      /* Disable local echo. */
-      tcgetattr( fileno( stdin ), &oldterm );
-      newterm = oldterm;
-      newterm.c_lflag &= ~ECHO;
-      tcsetattr( fileno( stdin ), TCSANOW, &newterm );
+      /* Disable password echo. */
+      console_echo_off();
 
       /* Get a password from stdin. */
       pc_key_buffer = calloc( i_key_buffer_size, sizeof( char ) );
@@ -143,8 +138,8 @@ int prompt_decrypt( void ) {
          pc_key_buffer = realloc( pc_key_buffer, i_key_buffer_size );
       }
 
-      /* Reset terminal to previous (echoing) settings. */
-      tcsetattr( fileno( stdin ), TCSANOW, &oldterm );
+      /* Echo in case we drop to console or something. */
+      console_echo_on();
 
       /* Perform the decryption, passing the resulting retval back. */
       i_retval = attempt_decrypt( pc_key_buffer );
@@ -155,9 +150,15 @@ int prompt_decrypt( void ) {
       i_key_index = 0;
 
       /* Break the loop to boot or reboot on certain errors. */
-      if( ERROR_RETVAL_CONSOLE_DONE == i_retval || !i_retval ) {
+      if( !i_retval ) {
          break;
       }
+
+      #ifdef CONSOLE
+      if( ERROR_RETVAL_CONSOLE_DONE == i_retval ) {
+         break;
+      }
+      #endif /* CONSOLE */
 
       i_key_attempts++;
    }
