@@ -186,19 +186,19 @@ int mount_mds( void ) {
 
       /* Close stdout/stderr if we're squelching errors. */
       #ifndef ERRORS
-      dup2( 1, i_stdout_temp );
-      dup2( 2, i_stderr_temp );
+      dup2( STDOUT_FILENO, i_stdout_temp );
+      dup2( STDERR_FILENO, i_stderr_temp );
       i_null_fd = open( "/dev/null", O_WRONLY );
-      dup2( i_null_fd, 1 );
-      dup2( i_null_fd, 2 );
+      dup2( i_null_fd, STDOUT_FILENO );
+      dup2( i_null_fd, STDERR_FILENO );
       #endif /* ERRORS */
 
       i_retval = system( ac_command_mdadm );
 
       /* Restore stdout/stderr. */
       #ifndef ERRORS
-      dup2( i_stdout_temp, 1 );
-      dup2( i_stderr_temp, 2 );
+      dup2( i_stdout_temp, STDOUT_FILENO );
+      dup2( i_stderr_temp, STDERR_FILENO );
       close( i_null_fd );
       #endif /* ERRORS */
 
