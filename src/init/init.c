@@ -33,6 +33,10 @@ int cleanup_system( int i_retval_in ) {
       "/sbin/init"
    };
 
+   #if defined DEBUG && defined CONSOLE
+   console_shell();
+   #endif /* DEBUG, CONSOLE */
+
    #ifdef NET
    /* TODO: Try to stop network. */
    /* killall dropbear 2>/dev/null
