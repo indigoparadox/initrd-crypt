@@ -11,6 +11,7 @@
 #define ERROR_RETVAL_DECRYPT_FAIL 64 /* Doesn't count root probe failure. */
 #define ERROR_RETVAL_CONSOLE_DONE 128 /* Not technically an error. */
 #define ERROR_RETVAL_NET_FAIL 256
+#define ERROR_RETVAL_SERIAL_FAIL 512
 
 /* = Macros = */
 #define PRINTF_ERROR( ... ) fprintf( stderr, __VA_ARGS__ );

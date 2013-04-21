@@ -9,15 +9,9 @@
 
 #include "crysco.h"
 #include "mount.h"
-#ifdef NET
 #include "network.h"
-#endif /* NET */
 
 #define CMDLINE_MAX_SIZE 255
-
-#ifdef SERIAL
-int gi_serial_port = 0;
-#endif /* SERIAL */
 
 /* Purpose: Wait until the main devices are decrypted and start the system.   */
 int action_crypt( void ) {
@@ -51,6 +45,7 @@ int cleanup_system( int i_retval_in ) {
 
    #ifdef SERIAL
    /* TODO: Try to stop serial port. */
+   stop_serial();
    #endif /* SERIAL */
 
    /* Prepare the system to load the "real" init (or reboot). */
@@ -98,7 +93,8 @@ void signal_handler( int i_signum_in ) {
 
 int main( int argc, char* argv[] ) {
    int i,
-      i_retval = 0;
+      i_retval = 0,
+      i_retval_local = 0;
 
    /* Protect ourselves against simple potential bypasses. */
    signal( SIGTERM, signal_handler );
@@ -123,25 +119,30 @@ int main( int argc, char* argv[] ) {
       #endif /* NET */
 
       #ifdef SERIAL
-
+      i_retval = setup_serial();
+      if( i_retval ) {
+         goto main_cleanup;
+      }
       #endif /* SERIAL */
 
       /* TODO: Load any directed kernel modules. */
 
       /* TODO: Start the splash screen (deprecated). */
-   }
+   } else {
+      /* We're being called as a sub-prompt, so just prompt to decrypt and    *
+       * exit on success or failure.                                          */
 
-   /* See if we're being called as a prompt only. */
-   for( i = 1 ; i < argc ; i++ ) {
-      if( !strncmp( "-p", argv[i], 2 ) ) {
-         /* Just prompt to decrypt and exit (signaling main process to clean  *
-          * up if decrypt is successful!)                                     */
-         i_retval = prompt_decrypt();
-         if( !i_retval ) {
-            kill( 1, SIGUSR1 );
+      i_retval = prompt_decrypt();
+      if( !i_retval ) {
+         i_retval_local = kill( 1, SIGTERM );
+         if( i_retval_local ) {
+            /* This isn't as important as the errorlevel we're exiting with. */
+            #ifdef ERRORS
+            perror( "Could not kill init" );
+            #endif /* ERRORS */
          }
-         goto main_cleanup;
       }
+      goto main_cleanup;
    }
 
    /* Start the challenge! */

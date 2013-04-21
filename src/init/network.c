@@ -1,9 +1,13 @@
 
 #include "config_extern.h"
 
-#ifdef NET
-
 #include "network.h"
+
+#ifdef SERIAL
+int gi_serial_port = 0;
+#endif /* SERIAL */
+
+#ifdef NET
 
 int setup_network( void ) {
    int i_socket,
@@ -84,4 +88,59 @@ sn_cleanup:
 }
 
 #endif /* NET */
+
+#ifdef SERIAL
+
+int setup_serial( void ) {
+   int i_retval = 0,
+      i_serial_pid;
+   char* pc_serial_dev,
+      * pc_prompt_argv_string,
+      ** ppc_prompt_argv;
+
+   pc_serial_dev = config_descramble_string( gac_serial_dev, gai_serial_dev );
+   pc_prompt_argv_string = config_descramble_string(
+      gac_command_prompt, gai_command_prompt
+   );
+   ppc_prompt_argv = config_split_string_array( pc_prompt_argv_string );
+
+   /* For now, just open up a serial port and launch a prompt process on it. */
+   i_serial_pid = fork();
+   if( 0 == i_serial_pid ) {
+      /* This is the child process. */
+
+      /* Open the serial port. */
+      gi_serial_port = open( pc_serial_dev, O_RDWR | O_NOCTTY | O_NDELAY );
+      if( 0 > gi_serial_port ) {
+         #ifdef ERRORS
+         perror( "Unable to open serial port" );
+         #endif /* ERRORS */
+         i_retval = ERROR_RETVAL_SERIAL_FAIL;
+         goto ss_cleanup;
+      } else {
+         fcntl( gi_serial_port, F_SETFL, FNDELAY );
+      }
+
+      /* Close existing stdin/stdout and attach them to the parent's pipes. */
+      close( STDIN_FILENO );
+      dup2( gi_serial_port, STDIN_FILENO );
+      dup2( gi_serial_port, STDERR_FILENO );
+
+      /* Start the prompt. */
+      execv( ppc_prompt_argv[0], ppc_prompt_argv );
+   }
+
+ss_cleanup:
+
+   free( pc_serial_dev );
+   config_free_string_array( ppc_prompt_argv );
+
+   return i_retval;
+}
+
+void stop_serial( void ) {
+
+}
+
+#endif /* SERIAL */
 
