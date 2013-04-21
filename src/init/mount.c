@@ -249,11 +249,14 @@ int mount_probe_root( void ) {
    DIR* p_dev_dir;
    struct dirent* p_dev_entry;
    regex_t s_regex;
-   int i_retval = 0;
+   int i_retval = 0,
+      i = 0;
    char* pc_root_dev = NULL,
       * pc_path_mapper = NULL,
       * pc_path_mapper_s = NULL,
-      * pc_root_mountpoint = NULL;
+      * pc_root_mountpoint = NULL,
+      * pc_fs_types_string = NULL;
+   char** ppc_fs_types = NULL;
 
    /* Initialize strings, etc. */
    if( regcomp( &s_regex, ".*\\-root", 0 ) ) {
@@ -276,6 +279,11 @@ int mount_probe_root( void ) {
       gac_sys_mpoint_root,
       gai_sys_mpoint_root
    );
+   pc_fs_types_string = config_descramble_string(
+      gac_sys_fs_types,
+      gai_sys_fs_types
+   );
+   ppc_fs_types = config_split_string_array( pc_fs_types_string );
 
    /* Try to find an appropriate root device. */
    p_dev_dir = opendir( pc_path_mapper );
@@ -311,17 +319,31 @@ int mount_probe_root( void ) {
    }
 
    /* Attempt to mount the selected root device. */
-   if( mount( pc_root_dev, pc_root_mountpoint, "ext3", MS_RDONLY, "" ) ) {
-      /* Keep trying until we find an FS that works. */
-      if( mount( pc_root_dev, pc_root_mountpoint, "ext2", MS_RDONLY, "" ) ) {
-         #ifdef ERRORS
-         printf( "%s %s\n", pc_root_dev, pc_root_mountpoint );
-         perror( "Unable to mount root device" );
-         #endif /* ERRORS */
-         i_retval = ERROR_RETVAL_ROOT_FAIL;
+   i = 0;
+   while( NULL != ppc_fs_types[i] ) {
+      printf( "%s\n", ppc_fs_types[i] );
+
+      i_retval = mount(
+         pc_root_dev, pc_root_mountpoint, ppc_fs_types[i], MS_RDONLY, ""
+      );
+
+      if( !i_retval ) {
+         /* This is kind of an odd duck, but here we skip to cleanup if we're *
+          * successful, rather than if we fail. If we fail, the failure will  *
+          * be set to the error value by default below.                       */
          goto mpr_cleanup;
       }
+
+      /* Keep trying until we find an FS that works. */
+      i++;
    }
+
+   /* We weren't successful, so we don't skip. */
+   #ifdef ERRORS
+   /* printf( "%s %s\n", pc_root_dev, pc_root_mountpoint ); */
+   perror( "Unable to mount root device" );
+   #endif /* ERRORS */
+   i_retval = ERROR_RETVAL_ROOT_FAIL;
 
 mpr_cleanup:
 
@@ -331,6 +353,8 @@ mpr_cleanup:
    free( pc_path_mapper );
    free( pc_path_mapper_s );
    free( pc_root_mountpoint );
+   free( pc_fs_types_string );
+   config_free_string_array( ppc_fs_types );
 
    return i_retval;
 }
