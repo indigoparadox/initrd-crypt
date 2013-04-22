@@ -85,7 +85,7 @@ int cleanup_system( int i_retval_in ) {
 
    /* Meaningless cleanup routines. */
    free( pc_command_switch_root_string );
-   config_free_string_holders( ppc_command_switch_root );
+   config_free_string_array( ppc_command_switch_root );
 
    return i_retval_in;
 }
@@ -106,8 +106,7 @@ void signal_handler( int i_signum_in ) {
 }
 
 int main( int argc, char* argv[] ) {
-   int i,
-      i_retval = 0,
+   int i_retval = 0,
       i_retval_local = 0;
 
    /* Protect ourselves against simple potential bypasses. */
