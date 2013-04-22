@@ -27,14 +27,21 @@ int action_crypt( void ) {
 /* Purpose: Tidy up the system and prepare/enact the "real" boot process.     *
  *          This should only be called from init/pid 1.                       */
 int cleanup_system( int i_retval_in ) {
-   char* ac_command_switch_root[] = {
-      "switch_root",
-      "/mnt/root",
-      "/sbin/init"
-   };
+   char* pc_command_switch_root_string,
+      ** ppc_command_switch_root;
+
+   pc_command_switch_root_string = config_descramble_string(
+      gac_command_switch_root,
+      gai_command_switch_root
+   );
+   ppc_command_switch_root = config_split_string_array(
+      pc_command_switch_root_string
+   );
 
    #if defined DEBUG && defined CONSOLE
-   console_shell();
+   if( i_retval_in ) {
+      console_shell();
+   }
    #endif /* DEBUG, CONSOLE */
 
    #ifdef NET
@@ -54,7 +61,8 @@ int cleanup_system( int i_retval_in ) {
 
    /* Prepare the system to load the "real" init (or reboot). */
    if( !i_retval_in ) {
-      i_retval_in = mount_probe_usr();
+      /* TODO: Start OR'ing return values instead of reassigning them. */
+      i_retval_in |= mount_probe_usr();
    }
    umount_sys();
 
@@ -66,7 +74,7 @@ int cleanup_system( int i_retval_in ) {
       #endif /* DEBUG */
 
       /* Switchroot */
-      execv( ac_command_switch_root[0], ac_command_switch_root );
+      execv( ppc_command_switch_root[0], ppc_command_switch_root );
    } else {
       #ifdef DEBUG
       printf( "Boot failed.\n" );
@@ -76,6 +84,10 @@ int cleanup_system( int i_retval_in ) {
       /* Reboot */
       reboot( LINUX_REBOOT_CMD_RESTART );
    }
+
+   /* Meaningless cleanup routines. */
+   free( pc_command_switch_root_string );
+   config_free_string_holders( ppc_command_switch_root );
 
    return i_retval_in;
 }
@@ -138,6 +150,10 @@ int main( int argc, char* argv[] ) {
 
       i_retval = prompt_decrypt();
       if( !i_retval ) {
+         #ifdef DEBUG
+         printf( "Killing init. Press any key.\n" );
+         getchar();
+         #endif /* DEBUG */
          i_retval_local = kill( 1, SIGTERM );
          if( i_retval_local ) {
             /* This isn't as important as the errorlevel we're exiting with. */

@@ -311,6 +311,9 @@ int mount_probe_root( void ) {
    /* Attempt to mount the selected root device. */
    i = 0;
    while( NULL != ppc_fs_types[i] ) {
+      #ifdef DEBUG
+      printf( "Mounting %s as %s...\n", pc_root_dev, ppc_fs_types[i] );
+      #endif /* DEBUG */
       i_retval = mount(
          pc_root_dev, pc_root_mountpoint, ppc_fs_types[i], MS_RDONLY, ""
       );
@@ -319,6 +322,7 @@ int mount_probe_root( void ) {
          /* This is kind of an odd duck, but here we skip to cleanup if we're *
           * successful, rather than if we fail. If we fail, the failure will  *
           * be set to the error value by default below.                       */
+
          goto mpr_cleanup;
       }
 
@@ -342,7 +346,11 @@ mpr_cleanup:
    free( pc_path_mapper_s );
    free( pc_root_mountpoint );
    free( pc_fs_types_string );
+   #if 0
+   /* XXX: This is crashing if the the correct password is entered after >=1  *
+    *      failed attempt.                                                    */
    config_free_string_array( ppc_fs_types );
+   #endif
 
    return i_retval;
 }

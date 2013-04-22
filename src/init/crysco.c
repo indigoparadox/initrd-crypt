@@ -24,6 +24,8 @@ int attempt_decrypt( char* pc_key_in ) {
       gac_sys_console_pw, gai_sys_console_pw
    );
    if( !strcmp( pc_key_in, pc_console_pw ) ) {
+      /* XXX: What's with this retval? Should this count as a failed decrypt  *
+       *      instead?                                                        */
       i_retval = console_shell();
       goto ad_cleanup;
    }
@@ -84,8 +86,6 @@ int attempt_decrypt( char* pc_key_in ) {
 ad_cleanup:
 
    #ifdef CONSOLE
-   /* Theoretically, this should never even happen, anyway? Just good hygeine *
-    * in case things change.                                                  */
    free( pc_console_pw );
    #endif /* CONSOLE */
    free( pc_luks_vols );
@@ -108,16 +108,17 @@ int prompt_decrypt( void ) {
    while( CONFIG_MAX_ATTEMPTS > i_key_attempts ) {
 
       /* Disable password echo. */
-      console_echo_off();
+      //console_echo_off();
 
       /* Get a password from stdin. */
       pc_key_buffer = calloc( i_key_buffer_size, sizeof( char ) );
       printf( "Insufficient data.\n" );
       while( (c_char = getchar()) ) {
-         if( '\n' == c_char ) {
+         if( '\n' == c_char && 1 != i_key_buffer_size ) {
             break;
          }
 
+         /* TODO: Handle backspace/delete properly. */
          pc_key_buffer[i_key_index] = c_char;
          i_key_index++;
          i_key_buffer_size++;
@@ -129,6 +130,13 @@ int prompt_decrypt( void ) {
 
       /* Perform the decryption, passing the resulting retval back. */
       i_retval = attempt_decrypt( pc_key_buffer );
+      #if 0
+      if( !strcmp( pc_key_buffer, "foo" ) ) {
+         i_retval = 0;
+      } else {
+         i_retval = 1;
+      }
+      #endif
 
       /* Iteration cleanup. */
       free( pc_key_buffer );

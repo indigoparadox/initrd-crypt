@@ -14,5 +14,6 @@ CONFIG_SCR(sys_path_mapper,`/dev/mapper')
 CONFIG_SCR(sys_path_mapper_s,`/dev/mapper/%s')
 CONFIG_SCR(command_prompt,`init')
 CONFIG_SCR(command_mdadm,`mdadm --assemble')
+CONFIG_SCR(command_switch_root,`switch_root|/mnt/root|/sbin/init')
 
 /* = Host-Specific Configuration = */
