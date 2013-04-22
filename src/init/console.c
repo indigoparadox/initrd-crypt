@@ -7,6 +7,8 @@ int gi_stdout_orig = -1,
    gi_stderr_orig = -1,
    gi_null_fd = -1;
 
+static struct termios* gps_term_echo = NULL;
+
 void console_hide( void ) {
    /* Don't do anything unless we're not currently redirecting. */
    if( -1 == gi_null_fd ) {
@@ -40,23 +42,30 @@ void console_show ( void ) {
    gi_null_fd = -1;
 }
 
-void console_echo_off( void ) {
-   struct termios s_term_current;
+/* The echo system is a little convoluted and probably bug-prone, but suitable for the *
+ * uses we expect here. We tried using AND'ing and making it more resiliant, but we    *
+ * didn't have much luck and we'd rather work on more interesting things for now.      */
+/* TODO: Make console wrapper a little more resiliant. */
 
-   tcgetattr( fileno( stdin ), &s_term_current );
-   if( s_term_current.c_lflag & ECHO ) {
-      s_term_current.c_lflag &= ~ECHO;
-      tcsetattr( fileno( stdin ), TCSANOW, &s_term_current );
+void console_echo_off( void ) {
+   struct termios s_term_new;
+
+   if( NULL == gps_term_echo ) {
+      gps_term_echo = calloc( 1, sizeof( struct termios ) );
+      tcgetattr( fileno( stdin ), gps_term_echo );
    }
+
+   s_term_new = *gps_term_echo;
+
+   s_term_new.c_lflag &= ~ECHO;
+   tcsetattr( fileno( stdin ), TCSANOW, &s_term_new );
 }
 
 void console_echo_on( void ) {
-   struct termios s_term_current;
-
-   tcgetattr( fileno( stdin ), &s_term_current );
-   if( !(s_term_current.c_lflag & ECHO) ) {
-      s_term_current.c_lflag &= ECHO;
-      tcsetattr( fileno( stdin ), TCSANOW, &s_term_current );
+   if( NULL != gps_term_echo ) {  
+      tcsetattr( fileno( stdin ), TCSANOW, gps_term_echo );
+      free( gps_term_echo );
+      gps_term_echo = NULL;
    }
 }
 

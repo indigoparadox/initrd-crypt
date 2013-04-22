@@ -11,8 +11,6 @@
 #include "mount.h"
 #include "network.h"
 
-#define CMDLINE_MAX_SIZE 255
-
 /* Purpose: Wait until the main devices are decrypted and start the system.   */
 int action_crypt( void ) {
 
