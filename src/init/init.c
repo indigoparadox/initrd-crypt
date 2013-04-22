@@ -27,6 +27,8 @@ int action_crypt( void ) {
 int cleanup_system( int i_retval_in ) {
    char* pc_command_switch_root_string,
       ** ppc_command_switch_root;
+   int i_console,
+      i_success;
 
    pc_command_switch_root_string = config_descramble_string(
       gac_command_switch_root,
@@ -67,13 +69,43 @@ int cleanup_system( int i_retval_in ) {
    /* Execute switchroot on success, reboot on failure. */
    if( !i_retval_in ) {
       #ifdef DEBUG
-      printf( "Boot ready.\n" );
-      getchar();
+      /* printf( "Boot ready.\n" );
+      getchar(); */
       #endif /* DEBUG */
 
       /* Switchroot */
+      /* execv( ppc_command_switch_root[0], ppc_command_switch_root ); */
+
+      if( chdir( "/mnt/root" ) ) {
+         #ifdef ERRORS
+         perror( "Unable to chdir to new root" );
+         #endif /* ERRORS */
+         goto boot_failed;
+      }
+      if( pivot_root( ".", "./mnt/floppy" ) ) {
+         #ifdef ERRORS
+         perror( "Unable to pivot root" );
+         #endif /* ERRORS */
+         goto boot_failed;
+      }
+
+      i_console = open( "/dev/console", O_RDONLY );
+      dup2( i_console, STDIN_FILENO );
+      close_nointr_nofail( i_console );
+      i_console = open( "/dev/console", O_WRONLY );
+      dup2( i_console, STDOUT_FILENO );
+      close_nointr_nofail( i_console );
+      i_console = open( "/dev/console", O_WRONLY );
+      dup2( i_console, STDERR_FILENO );
+      close_nointr_nofail( i_console );
+
+      /* execl( "/sbin/init", (char*)NULL ); */
       execv( ppc_command_switch_root[0], ppc_command_switch_root );
-   } else {
+   }
+
+boot_failed:
+   
+   if( i_retval_in ) {
       #ifdef DEBUG
       printf( "Boot failed.\n" );
       getchar();
