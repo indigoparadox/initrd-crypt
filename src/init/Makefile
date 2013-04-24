@@ -8,7 +8,7 @@ else
 	# Debug
 	CFLAGS := -DDEBUG -DERRORS -Wall -O3 -g
 endif
-OBJS = config.o init.o mount.o crysco.o console.o network.o
+OBJS = config.o init.o mount.o crysco.o console.o network.o util.o
 BIN = init
 ALLDEPS := init
 ifeq ($(RELEASE),release)

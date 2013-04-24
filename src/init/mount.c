@@ -58,7 +58,8 @@ int umount_sys( void ) {
 /* Return: 0 on success, 1 on failure.                                        */
 /* Notes: pc_sys_fs_string format is mount_point<block_device|fs_type>        */
 int mount_sys( void ) {
-   int i_retval = 0;
+   int i_retval = 0,
+      i_hotplug_handle;
    char* pc_sys_fs_string = NULL;
    struct string_holder* ps_sys_fs = NULL,
       * ps_sys_fs_iter = NULL;
@@ -112,6 +113,26 @@ int mount_sys( void ) {
 
    free( pc_sys_fs_string );
    config_free_string_holders( ps_sys_fs );
+
+   /* Launch mdev to handle /dev FS. */
+   #ifdef DEBUG
+   printf( "Starting mdev...\n" );
+   #endif /* DEBUG */
+   i_hotplug_handle = open( "/proc/sys/kernel/hotplug", O_WRONLY );
+   write( i_hotplug_handle, "/sbin/mdev", 10 );
+   close( i_hotplug_handle );
+   /* TODO: Should we squelch stdout/stderr for this? */
+   if( system( "/sbin/mdev -s" ) ) {
+      #ifdef ERRORS
+      PRINTF_ERROR( "Problem detected starting mdev." );
+      #endif
+      /* TODO: XOR this retval someday. */
+      i_retval = ERROR_RETVAL_MDEV_FAIL;
+   } else {
+      #ifdef DEBUG
+      printf( "mdev started.\n" );
+      #endif /* DEBUG */
+   }
 
    return i_retval;
 }
@@ -362,5 +383,161 @@ int mount_probe_usr( void ) {
     */
    /* FIXME */
    return 0;
+}
+
+/* Portions of this code shamelessly stolen from busybox (but changed to      *
+ * fit our preferred coding style.                                            */
+
+static void mount_rmtree( char* pc_dir_path_in, dev_t i_root_dev_in ) {
+   DIR* ps_dir;
+   struct dirent* ps_entry;
+   struct stat s_stat;
+   char* pc_entry,
+      * pc_last_char,
+      * pc_entry_char_iter;
+
+   /* Don't descend into other filesystems. */
+   if( lstat( pc_dir_path_in, &s_stat ) || s_stat.st_dev != i_root_dev_in ) {
+      goto mr_cleanup;
+   }
+
+   /* Recursively delete the contents of directories. */
+   if( S_ISDIR( s_stat.st_mode ) ) {
+      ps_dir = opendir( pc_dir_path_in );
+      if( ps_dir ) {
+         while( (ps_entry = readdir( ps_dir )) ) {
+            pc_entry = ps_entry->d_name;
+
+            /* Skip special entries. */
+            if( (
+               pc_entry[0] == '.' &&
+               (pc_entry[1] == '\0' ||
+                  (pc_entry[1] == '.' && pc_entry[2] == '\0'))
+            ) ) {
+               continue;
+            }
+
+            /* pc_entry =
+               concat_path_file( pc_dir_path_in, pc_entry ); */
+            pc_entry_char_iter = pc_entry;
+            pc_last_char = last_char_is( pc_dir_path_in, '/' );
+            while( '/' == *pc_entry_char_iter ) {
+               pc_entry_char_iter++;
+            }
+            pc_entry = xasprintf(
+               "%s%s%s",
+               pc_dir_path_in,
+               (NULL == pc_last_char ? "/" : ""),
+               pc_entry
+            );
+
+            /* Recurse to delete contents. */
+            mount_rmtree( pc_entry, i_root_dev_in );
+            free( pc_entry );
+         }
+         closedir( ps_dir );
+
+         /* Directory should now be empty; zap it. */
+         rmdir( pc_dir_path_in );
+      }
+   } else {
+      /* It wasn't a directory; zap it. */
+      unlink( pc_dir_path_in );
+   }
+
+mr_cleanup:
+   
+   return;
+}
+
+/* Purpose: Switch from a tmpfs init root to a non-tmpfs full system root and *
+ *          exec the proper init from there.                                  */
+/* Return: Ideally, this will never return.                                   */
+int mount_switch_root( char* pc_new_root_in ) {
+   /* mount_rmtree( pc_new_root_in, NULL ); */
+
+   struct stat s_stat;
+   struct statfs s_statfs;
+   dev_t i_root_dev;
+   char* pc_command_switch_root_string,
+      ** ppc_command_switch_root;
+   int i_retval = 0;
+
+   pc_command_switch_root_string = config_descramble_string(
+      gac_command_switch_root,
+      gai_command_switch_root
+   );
+   ppc_command_switch_root = config_split_string_array(
+      pc_command_switch_root_string
+   );
+
+   /* Change to new root directory and verify it's a different FS. */
+   chdir( pc_new_root_in );
+   stat( "/", &s_stat );
+   i_root_dev = s_stat.st_dev;
+   stat( ".", &s_stat );
+   if( s_stat.st_dev == i_root_dev || getpid() != 1 ) {
+      #ifdef ERRORS
+      PRINTF_ERROR( "Invalid call to switch_root.\n" );
+      #endif /* ERRORS */
+      i_retval = ERROR_RETVAL_ROOT_FAIL;
+      goto msr_cleanup;
+   }
+
+   /* Additional sanity checks: we're about to rm -rf /, so be REALLY SURE we *
+    * mean it.                                                                */
+   if( stat( "/init", &s_stat ) != 0 || !S_ISREG( s_stat.st_mode ) ) {
+      #ifdef ERRORS
+      PRINTF_ERROR( "/init is not a regular file.\n" );
+      #endif /* ERRORS */
+      i_retval = ERROR_RETVAL_ROOT_FAIL;
+      goto msr_cleanup;
+   }
+
+   statfs( "/", &s_statfs );
+   if(
+      RAMFS_MAGIC != (unsigned)s_statfs.f_type &&
+      TMPFS_MAGIC != (unsigned)s_statfs.f_type
+   ) {
+      #ifdef ERRORS
+      PRINTF_ERROR( "Root filesystem is not ramfs/tmpfs.\n" );
+      #endif /* ERRORS */
+      i_retval = ERROR_RETVAL_ROOT_FAIL;
+      goto msr_cleanup;
+   }
+
+   /* Zap everything out of root dev. */
+   mount_rmtree( "/", i_root_dev );
+
+   /* Overmount / with newdir and chroot into it. */
+   if( mount( ".", "/", NULL, MS_MOVE, NULL ) ) {
+      #ifdef ERRORS
+      PRINTF_ERROR( "Error moving root.\n" );
+      #endif /* ERRORS */
+      i_retval = ERROR_RETVAL_ROOT_FAIL;
+      goto msr_cleanup;
+   }
+   chroot( "." );
+   chdir( "/" );
+
+   #if 0
+   /* If a new console specified, redirect stdin/stdout/stderr to it. */
+   if( console ) {
+      close(0);
+      xopen(console, O_RDWR);
+      xdup2(0, 1);
+      xdup2(0, 2);
+   }
+   #endif
+
+   execv( ppc_command_switch_root[0], ppc_command_switch_root );
+ 
+msr_cleanup:
+
+   /* Meaningless cleanup routines. */
+   free( pc_command_switch_root_string );
+   config_free_string_array( ppc_command_switch_root );
+
+   return i_retval;
 }
 

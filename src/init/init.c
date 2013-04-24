@@ -30,6 +30,7 @@ int cleanup_system( int i_retval_in ) {
    int i_console,
       i_success;
 
+   #if 0
    pc_command_switch_root_string = config_descramble_string(
       gac_command_switch_root,
       gai_command_switch_root
@@ -37,6 +38,7 @@ int cleanup_system( int i_retval_in ) {
    ppc_command_switch_root = config_split_string_array(
       pc_command_switch_root_string
    );
+   #endif
 
    #if defined DEBUG && defined CONSOLE
    if( i_retval_in ) {
@@ -76,6 +78,7 @@ int cleanup_system( int i_retval_in ) {
       /* Switchroot */
       /* execv( ppc_command_switch_root[0], ppc_command_switch_root ); */
 
+      #if 0
       if( chdir( "/mnt/root" ) ) {
          #ifdef ERRORS
          perror( "Unable to chdir to new root" );
@@ -101,6 +104,12 @@ int cleanup_system( int i_retval_in ) {
 
       /* execl( "/sbin/init", (char*)NULL ); */
       execv( ppc_command_switch_root[0], ppc_command_switch_root );
+      #endif
+
+      i_retval_in = mount_switch_root( "/mnt/root" );
+      if( i_retval_in ) {
+         PRINTF_ERROR( "Unable to chroot.\n" );
+      }
    }
 
 boot_failed:
@@ -116,8 +125,8 @@ boot_failed:
    }
 
    /* Meaningless cleanup routines. */
-   free( pc_command_switch_root_string );
-   config_free_string_array( ppc_command_switch_root );
+   /* free( pc_command_switch_root_string );
+   config_free_string_array( ppc_command_switch_root ); */
 
    return i_retval_in;
 }
@@ -152,6 +161,8 @@ int main( int argc, char* argv[] ) {
       if( i_retval ) {
          goto main_cleanup;
       }
+
+
       i_retval = mount_mds();
       if( i_retval ) {
          goto main_cleanup;
