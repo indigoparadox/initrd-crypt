@@ -15,7 +15,42 @@
 #define ERROR_RETVAL_MDEV_FAIL 1024
 
 /* = Macros = */
+
+/* TODO: Get rid of this outdated macro. */
 #define PRINTF_ERROR( ... ) fprintf( stderr, __VA_ARGS__ );
+
+#ifdef ERRORS 
+
+#define ERROR_PRINTF( test, retval, errno, golabel, ... ) \
+   if( test ) { \
+      fprintf( stderr, __VA_ARGS__ ); \
+      retval |= errno; \
+      goto golabel; \
+   }
+
+#define ERROR_PERROR( test, retval, errno, golabel, errmsg ) \
+   if( test ) { \
+      perror( errmsg ); \
+      retval |= errno; \
+      goto golabel; \
+   }
+
+#else
+
+#define ERROR_PRINTF( test, retval, errno, golabel, ... ) \
+   if( test ) { \
+      retval |= errno; \
+      goto golabel; \
+   }
+
+#define ERROR_PERROR( test, retval, errno, golabel, errmsg ) \
+   if( test ) { \
+      retval |= errno; \
+      goto golabel; \
+   }
+
+#endif /* ERRORS */
+   
 
 #endif /* ERROR_H */
 

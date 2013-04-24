@@ -118,21 +118,32 @@ int mount_sys( void ) {
    #ifdef DEBUG
    printf( "Starting mdev...\n" );
    #endif /* DEBUG */
+
    i_hotplug_handle = open( "/proc/sys/kernel/hotplug", O_WRONLY );
-   write( i_hotplug_handle, "/sbin/mdev", 10 );
-   close( i_hotplug_handle );
+   
+   ERROR_PERROR(
+      write( i_hotplug_handle, "/sbin/mdev", 10 ),
+      i_retval,
+      ERROR_RETVAL_MDEV_FAIL,
+      ms_cleanup,
+      "Unable to write mdev to /proc/sys/kernel/hotplug"
+   );
    /* TODO: Should we squelch stdout/stderr for this? */
-   if( system( "/sbin/mdev -s" ) ) {
-      #ifdef ERRORS
-      PRINTF_ERROR( "Problem detected starting mdev." );
-      #endif
-      /* TODO: XOR this retval someday. */
-      i_retval = ERROR_RETVAL_MDEV_FAIL;
-   } else {
-      #ifdef DEBUG
-      printf( "mdev started.\n" );
-      #endif /* DEBUG */
-   }
+   ERROR_PRINTF(
+      system( "/sbin/mdev -s" ),
+      i_retval,
+      ERROR_RETVAL_MDEV_FAIL,
+      ms_cleanup,
+      "Problem detected starting mdev.\n"
+   );
+
+   #ifdef DEBUG
+   printf( "mdev started.\n" );
+   #endif /* DEBUG */
+
+ms_cleanup:
+
+   close( i_hotplug_handle );
 
    return i_retval;
 }
@@ -385,6 +396,12 @@ int mount_probe_usr( void ) {
    return 0;
 }
 
+/* Purpose: Copy device nodes from initramds mapper directory to new root     *
+ *          mapper directory.                                                 */
+void mount_preserve_mapper( void ) {
+   /* FIXME */
+}
+
 /* Portions of this code shamelessly stolen from busybox (but changed to      *
  * fit our preferred coding style.                                            */
 
@@ -472,7 +489,13 @@ int mount_switch_root( char* pc_new_root_in ) {
    );
 
    /* Change to new root directory and verify it's a different FS. */
-   chdir( pc_new_root_in );
+   ERROR_PRINTF(
+      chdir( pc_new_root_in ),
+      i_retval,
+      ERROR_RETVAL_ROOT_FAIL,
+      msr_cleanup,
+      "Unable to chdir to new root.\n"
+   );
    stat( "/", &s_stat );
    i_root_dev = s_stat.st_dev;
    stat( ".", &s_stat );
@@ -517,8 +540,20 @@ int mount_switch_root( char* pc_new_root_in ) {
       i_retval = ERROR_RETVAL_ROOT_FAIL;
       goto msr_cleanup;
    }
-   chroot( "." );
-   chdir( "/" );
+   ERROR_PRINTF(
+      chroot( "." ),
+      i_retval,
+      ERROR_RETVAL_ROOT_FAIL,
+      msr_cleanup,
+      "Unable to chroot to new root.\n"
+   );
+   ERROR_PRINTF(
+      chdir( "/" ),
+      i_retval,
+      ERROR_RETVAL_ROOT_FAIL,
+      msr_cleanup,
+      "Unable to refresh new root.\n"
+   );
 
    #if 0
    /* If a new console specified, redirect stdin/stdout/stderr to it. */

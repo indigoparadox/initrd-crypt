@@ -10,35 +10,11 @@
 #include "crysco.h"
 #include "mount.h"
 #include "network.h"
-
-/* Purpose: Wait until the main devices are decrypted and start the system.   */
-int action_crypt( void ) {
-
-   #ifdef NET
-   /* TODO: Try to start network listener. */
-   #endif /* NET */
-
-   /* Get the user password. */
-   return prompt_decrypt();
-}
+#include "error.h"
 
 /* Purpose: Tidy up the system and prepare/enact the "real" boot process.     *
  *          This should only be called from init/pid 1.                       */
-int cleanup_system( int i_retval_in ) {
-   char* pc_command_switch_root_string,
-      ** ppc_command_switch_root;
-   int i_console,
-      i_success;
-
-   #if 0
-   pc_command_switch_root_string = config_descramble_string(
-      gac_command_switch_root,
-      gai_command_switch_root
-   );
-   ppc_command_switch_root = config_split_string_array(
-      pc_command_switch_root_string
-   );
-   #endif
+void cleanup_system( int i_retval_in ) {
 
    #if defined DEBUG && defined CONSOLE
    if( i_retval_in ) {
@@ -58,59 +34,40 @@ int cleanup_system( int i_retval_in ) {
 
    #ifdef SERIAL
    /* TODO: Try to stop serial port. */
-   stop_serial();
+   ERROR_PRINTF(
+      stop_serial(),
+      i_retval_in,
+      ERROR_RETVAL_SERIAL_FAIL,
+      boot_failed,
+      "Unable to stop serial subsystem.\n"
+   );
    #endif /* SERIAL */
 
    /* Prepare the system to load the "real" init (or reboot). */
-   if( !i_retval_in ) {
-      /* TODO: Start OR'ing return values instead of reassigning them. */
-      i_retval_in |= mount_probe_usr();
-   }
-   umount_sys();
+   ERROR_PRINTF(
+      mount_probe_usr(),
+      i_retval_in,
+      ERROR_RETVAL_SYSFS_FAIL,
+      boot_failed,
+      "Unable to detect or mount usr directory.\n"
+   );
+
+   ERROR_PRINTF(
+      umount_sys(),
+      i_retval_in,
+      ERROR_RETVAL_SYSFS_FAIL,
+      boot_failed,
+      "Unable to unmount system directories.\n"
+   );
 
    /* Execute switchroot on success, reboot on failure. */
-   if( !i_retval_in ) {
-      #ifdef DEBUG
-      /* printf( "Boot ready.\n" );
-      getchar(); */
-      #endif /* DEBUG */
-
-      /* Switchroot */
-      /* execv( ppc_command_switch_root[0], ppc_command_switch_root ); */
-
-      #if 0
-      if( chdir( "/mnt/root" ) ) {
-         #ifdef ERRORS
-         perror( "Unable to chdir to new root" );
-         #endif /* ERRORS */
-         goto boot_failed;
-      }
-      if( pivot_root( ".", "./mnt/floppy" ) ) {
-         #ifdef ERRORS
-         perror( "Unable to pivot root" );
-         #endif /* ERRORS */
-         goto boot_failed;
-      }
-
-      i_console = open( "/dev/console", O_RDONLY );
-      dup2( i_console, STDIN_FILENO );
-      close_nointr_nofail( i_console );
-      i_console = open( "/dev/console", O_WRONLY );
-      dup2( i_console, STDOUT_FILENO );
-      close_nointr_nofail( i_console );
-      i_console = open( "/dev/console", O_WRONLY );
-      dup2( i_console, STDERR_FILENO );
-      close_nointr_nofail( i_console );
-
-      /* execl( "/sbin/init", (char*)NULL ); */
-      execv( ppc_command_switch_root[0], ppc_command_switch_root );
-      #endif
-
-      i_retval_in = mount_switch_root( "/mnt/root" );
-      if( i_retval_in ) {
-         PRINTF_ERROR( "Unable to chroot.\n" );
-      }
-   }
+   ERROR_PRINTF(
+      mount_switch_root( "/mnt/root" ),
+      i_retval_in,
+      ERROR_RETVAL_ROOT_FAIL,
+      boot_failed,
+      "Unable to chroot.\n"
+   );
 
 boot_failed:
    
@@ -123,12 +80,6 @@ boot_failed:
       /* Reboot */
       reboot( LINUX_REBOOT_CMD_RESTART );
    }
-
-   /* Meaningless cleanup routines. */
-   /* free( pc_command_switch_root_string );
-   config_free_string_array( ppc_command_switch_root ); */
-
-   return i_retval_in;
 }
 
 void signal_handler( int i_signum_in ) {
@@ -157,11 +108,13 @@ int main( int argc, char* argv[] ) {
 
    if( 1 == getpid() ) {
       /* We're being called as init, so set the system up. */
-      i_retval = mount_sys();
-      if( i_retval ) {
-         goto main_cleanup;
-      }
-
+      ERROR_PRINTF(
+         mount_sys(),
+         i_retval,
+         ERROR_RETVAL_SYSFS_FAIL,
+         main_cleanup,
+         "There was a problem mounting dynamic system filesystems.\n"
+      );
 
       i_retval = mount_mds();
       if( i_retval ) {
@@ -206,12 +159,12 @@ int main( int argc, char* argv[] ) {
    }
 
    /* Start the challenge! */
-   i_retval = action_crypt();
+   i_retval = prompt_decrypt();
 
 main_cleanup:
 
    if( 1 == getpid() ) {
-      i_retval = cleanup_system( i_retval );
+      cleanup_system( i_retval );
    }
 
    return i_retval;
