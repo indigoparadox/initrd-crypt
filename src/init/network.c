@@ -32,31 +32,37 @@ int setup_network( void ) {
       goto sn_cleanup;
    }
 
-   /* Set the IP. */
-   s_ifreq.ifr_addr.sa_family = AF_INET;
+   /* Bring the interface up. */
    strncpy( s_ifreq.ifr_name, pc_net_if, IFNAMSIZ - 1 );
-   s_addr.sin_addr.s_addr = inet_addr( pc_net_ip );
-   memcpy( &s_ifreq.ifr_addr, &s_addr, sizeof( struct sockaddr ) );
-
-   if( 0 > (i_retval = ioctl( i_socket, SIOCGIFADDR, (char*)&s_ifreq )) ) {
-      #ifdef ERRORS
-      perror( "Error executing ioctl on socket" );
-      #endif /* ERRORS */
-      goto sn_cleanup;
-   }
 
    if( 0 > (i_retval = ioctl( i_socket, SIOCGIFFLAGS, (char*)&s_ifreq )) ) {
       #ifdef ERRORS
-      perror( "Error executing ioctl on socket" );
+      perror( "Error executing ioctl SIOCGIFFLAGS on socket" );
       #endif /* ERRORS */
       goto sn_cleanup;
    }
 
    s_ifreq.ifr_flags |= IFF_UP | IFF_RUNNING;
 
-   if( 0 > (i_retval = ioctl( i_socket, SIOCGIFFLAGS, (char*)&s_ifreq )) ) {
+   if( 0 > (i_retval = ioctl( i_socket, SIOCSIFFLAGS, (char*)&s_ifreq )) ) {
       #ifdef ERRORS
-      perror( "Error executing ioctl on socket" );
+      perror( "Error executing ioctl SIOCSIFFLAGS on socket" );
+      #endif /* ERRORS */
+      goto sn_cleanup;
+   }
+
+   /* Set the IP. */
+   memset( &s_ifreq, '\0', sizeof( struct ifreq ) );
+   memset( &s_addr, '\0', sizeof( struct sockaddr_in ) );
+   strncpy( s_ifreq.ifr_name, pc_net_if, IFNAMSIZ - 1 );
+   s_addr.sin_addr.s_addr = inet_addr( pc_net_ip );
+   s_addr.sin_family = AF_INET;
+   s_addr.sin_port = 0;
+   memcpy( &s_ifreq.ifr_addr, &s_addr, sizeof( struct sockaddr ) );
+
+   if( 0 > (i_retval = ioctl( i_socket, SIOCSIFADDR, (char*)&s_ifreq )) ) {
+      #ifdef ERRORS
+      perror( "Error executing ioctl SIOCSIFADDR on socket" );
       #endif /* ERRORS */
       goto sn_cleanup;
    }
@@ -65,7 +71,7 @@ int setup_network( void ) {
    /* Verify and display address. */
    if( 0 > (i_retval = ioctl( i_socket, SIOCGIFADDR, &s_ifreq )) ) {
       #ifdef ERRORS
-      perror( "Error executing ioctl on socket" );
+      perror( "Error executing ioctl SIOCGIFADDR on socket" );
       #endif /* ERRORS */
       goto sn_cleanup;
    }
