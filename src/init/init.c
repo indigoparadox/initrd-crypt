@@ -15,12 +15,18 @@
 /* Purpose: Tidy up the system and prepare/enact the "real" boot process.     *
  *          This should only be called from init/pid 1.                       */
 void cleanup_system( int i_retval_in ) {
+   char* pc_mpoint_root;
 
-   #if defined DEBUG && defined CONSOLE
+   pc_mpoint_root = config_descramble_string(
+      gac_sys_mpoint_root,
+      gai_sys_mpoint_root
+   );
+
    if( i_retval_in ) {
-      console_shell();
+      /* Drop to console or whatever without trying to clean up if we already *
+       * have an error.                                                       */
+      goto boot_failed;
    }
-   #endif /* DEBUG, CONSOLE */
 
    #ifdef NET
    /* TODO: Try to stop network. */
@@ -43,6 +49,15 @@ void cleanup_system( int i_retval_in ) {
    );
    #endif /* SERIAL */
 
+   /* Mount was successful, so bring dev nodes over. */
+   /* ERROR_PRINTF(
+      mount_preserve_mapper( pc_mpoint_root ),
+      i_retval_in,
+      ERROR_RETVAL_MAPPER_FAIL,
+      boot_failed,
+      "Unable to create all mapper dev nodes.\n"
+   ); */
+
    /* Prepare the system to load the "real" init (or reboot). */
    ERROR_PRINTF(
       mount_probe_usr(),
@@ -62,7 +77,7 @@ void cleanup_system( int i_retval_in ) {
 
    /* Execute switchroot on success, reboot on failure. */
    ERROR_PRINTF(
-      mount_switch_root( "/mnt/root" ),
+      mount_switch_root( pc_mpoint_root ),
       i_retval_in,
       ERROR_RETVAL_ROOT_FAIL,
       boot_failed,
@@ -70,6 +85,14 @@ void cleanup_system( int i_retval_in ) {
    );
 
 boot_failed:
+
+   free( pc_mpoint_root );
+
+   #if defined DEBUG && defined CONSOLE
+   if( i_retval_in ) {
+      console_shell();
+   }
+   #endif /* DEBUG, CONSOLE */
    
    if( i_retval_in ) {
       #ifdef DEBUG

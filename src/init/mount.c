@@ -28,7 +28,6 @@ int umount_sys( void ) {
 
    /* Dismount the devices in the reverse order in which they were mounted. */
    while( 1 ) {
-      /* TODO: Handle things keeping e.g. /dev open. */
       i_retval = umount2( ps_sys_fs_iter->name, MNT_FORCE );
       if( i_retval ) {
          #ifdef ERRORS
@@ -121,13 +120,13 @@ int mount_sys( void ) {
 
    i_hotplug_handle = open( "/proc/sys/kernel/hotplug", O_WRONLY );
    
-   ERROR_PERROR(
+   /* ERROR_PERROR(
       write( i_hotplug_handle, "/sbin/mdev", 10 ),
       i_retval,
       ERROR_RETVAL_MDEV_FAIL,
       ms_cleanup,
       "Unable to write mdev to /proc/sys/kernel/hotplug"
-   );
+   ); */
    /* TODO: Should we squelch stdout/stderr for this? */
    ERROR_PRINTF(
       system( "/sbin/mdev -s" ),
@@ -398,8 +397,104 @@ int mount_probe_usr( void ) {
 
 /* Purpose: Copy device nodes from initramds mapper directory to new root     *
  *          mapper directory.                                                 */
-void mount_preserve_mapper( void ) {
-   /* FIXME */
+int mount_preserve_mapper( char* pc_mpoint_new_root_in ) {
+   DIR* ps_dir;
+   struct dirent* ps_entry;
+   char* pc_path_mapper,
+      * pc_path_mapper_entry,
+      * pc_path_new_mapper_entry,
+      * pc_mpoint_root,
+      * pc_mpoint_new_root;
+   struct stat s_stat;
+   int i_retval = 0;
+
+   pc_path_mapper = config_descramble_string(
+      gac_sys_path_mapper,
+      gai_sys_path_mapper
+   );
+   pc_mpoint_root = config_descramble_string(
+      gac_sys_mpoint_root,
+      gai_sys_mpoint_root
+   );
+
+   /* Remount the new root RW so that device nodes can be created. */
+   mount( NULL, pc_mpoint_root, NULL, MS_REMOUNT, "" );
+
+   /* Make sure mounted root mapper directory exists. */
+   pc_mpoint_new_root = xasprintf( "%s%s", pc_mpoint_root, pc_path_mapper );
+   if( -1 == stat( pc_mpoint_new_root, &s_stat ) && ENOENT == errno ) {
+      #ifdef DEBUG
+      printf( "Creating %s...\n", pc_mpoint_new_root );
+      #endif /* DEBUG */
+      ERROR_PERROR(
+         mkdir( pc_mpoint_new_root, 0755 ),
+         i_retval,
+         ERROR_RETVAL_MAPPER_FAIL,
+         mpm_cleanup,
+         "Unable to create new mapper directory"
+      );
+   }
+   free( pc_mpoint_new_root );
+
+   /* Iterate through the devices in /dev/mapper and re-create them on the    *
+    * newly mounted root.                                                     */
+   ps_dir = opendir( pc_path_mapper );
+   while( (ps_entry = readdir( ps_dir )) ) {
+      /* Skip the control device. */
+      if( !strcmp( ps_entry->d_name, "control" ) ) {
+         continue;
+      }
+
+      /* Skip special entries. */
+      if( (
+         ps_entry->d_name[0] == '.' &&
+         (ps_entry->d_name[1] == '\0' ||
+            (ps_entry->d_name[1] == '.' && ps_entry->d_name[2] == '\0'))
+      ) ) {
+         continue;
+      }
+
+      pc_path_mapper_entry = xasprintf(
+         "%s/%s",
+         pc_path_mapper,
+         ps_entry->d_name
+      );
+      pc_path_new_mapper_entry = xasprintf(
+         "%s%s/%s",
+         pc_mpoint_root,
+         pc_path_mapper,
+         ps_entry->d_name
+      );
+
+      #ifdef DEBUG
+      printf(
+         "Re-creating %s on %s...\n",
+         pc_path_mapper_entry,
+         pc_path_new_mapper_entry
+      );
+      #endif /* DEBUG */
+
+      /* FIXME: Copy mapper block device node to new root. */
+      stat( pc_path_mapper_entry, &s_stat );
+      
+      ERROR_PERROR_NOBREAK(
+         mknod( pc_path_new_mapper_entry, 0600, s_stat.st_dev ),
+         i_retval,
+         ERROR_RETVAL_MAPPER_FAIL,
+         "Unable to create device node"
+      );
+
+      free( pc_path_mapper_entry );
+      free( pc_path_new_mapper_entry );
+   }
+
+mpm_cleanup:
+
+   closedir( ps_dir );
+   free( pc_path_mapper );
+   free( pc_mpoint_root );
+
+   return i_retval;
 }
 
 /* Portions of this code shamelessly stolen from busybox (but changed to      *

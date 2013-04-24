@@ -36,6 +36,7 @@ int mount_sys( void );
 int mount_mds( void );
 int mount_probe_root( void );
 int mount_probe_usr( void );
+int mount_preserve_mapper( char* );
 int mount_switch_root( char* );
 
 #endif /* MOUNT_H */

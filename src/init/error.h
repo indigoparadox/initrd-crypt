@@ -35,6 +35,12 @@
       goto golabel; \
    }
 
+#define ERROR_PERROR_NOBREAK( test, retval, errno, errmsg ) \
+   if( test ) { \
+      perror( errmsg ); \
+      retval |= errno; \
+   }
+
 #else
 
 #define ERROR_PRINTF( test, retval, errno, golabel, ... ) \
@@ -47,6 +53,11 @@
    if( test ) { \
       retval |= errno; \
       goto golabel; \
+   }
+
+#define ERROR_PERROR_NOBREAK( test, errmsg ) \
+   if( test ) { \
+      retval |= errno; \
    }
 
 #endif /* ERRORS */
