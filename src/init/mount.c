@@ -395,6 +395,7 @@ int mount_probe_usr( void ) {
    return 0;
 }
 
+#if 0
 /* Purpose: Copy device nodes from initramds mapper directory to new root     *
  *          mapper directory.                                                 */
 int mount_preserve_mapper( char* pc_mpoint_new_root_in ) {
@@ -496,6 +497,7 @@ mpm_cleanup:
 
    return i_retval;
 }
+#endif
 
 /* Portions of this code shamelessly stolen from busybox (but changed to      *
  * fit our preferred coding style.                                            */

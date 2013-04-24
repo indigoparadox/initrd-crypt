@@ -49,15 +49,6 @@ void cleanup_system( int i_retval_in ) {
    );
    #endif /* SERIAL */
 
-   /* Mount was successful, so bring dev nodes over. */
-   /* ERROR_PRINTF(
-      mount_preserve_mapper( pc_mpoint_root ),
-      i_retval_in,
-      ERROR_RETVAL_MAPPER_FAIL,
-      boot_failed,
-      "Unable to create all mapper dev nodes.\n"
-   ); */
-
    /* Prepare the system to load the "real" init (or reboot). */
    ERROR_PRINTF(
       mount_probe_usr(),
