@@ -7,6 +7,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <signal.h>
 #ifdef NET
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -22,9 +23,10 @@
 
 #ifdef NET
 int network_start_ssh( void );
+int network_stop_ssh( void );
 int network_signal_dyndns( void );
 int setup_network( void );
-void stop_network( void );
+int stop_network( void );
 #endif /* NET */
 
 #endif /* NETWORK_H */

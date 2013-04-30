@@ -31,17 +31,26 @@ void cleanup_system( int i_retval_in ) {
       goto boot_failed;
    }
 
+   /* Prepare the system to load the "real" init (or reboot). */
+
    #ifdef NET
-   /* TODO: Try to stop network. */
-   /* killall dropbear 2>/dev/null
-   for DEV_ITER in `/bin/cat /proc/net/dev | /bin/awk '{print $1}' | \
-      /bin/grep ":$" | /bin/sed s/.$//`
-   do
-      ifconfig $DEV_ITER down 2>/dev/null
-   done */
+   ERROR_PRINTF(
+      network_stop_ssh(),
+      i_retval_in,
+      ERROR_RETVAL_SSH_FAIL,
+      boot_failed,
+      "Unable to stop SSH daemon.\n"
+   );
+
+   ERROR_PRINTF(
+      stop_network(),
+      i_retval_in,
+      ERROR_RETVAL_NET_FAIL,
+      boot_failed,
+      "Unable to stop network.\n"
+   );
    #endif /* NET */
 
-   /* Prepare the system to load the "real" init (or reboot). */
    ERROR_PRINTF(
       mount_probe_usr(),
       i_retval_in,

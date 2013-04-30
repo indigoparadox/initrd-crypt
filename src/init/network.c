@@ -53,6 +53,62 @@ nss_cleanup:
    return i_retval;
 }
 
+int network_stop_ssh( void ) {
+
+   /* TODO: Define the constant centrally/use another constant. */
+   #define SSH_PID_LINE_BUFFER_SIZE 50
+
+   int i_retval = 0,
+      i_ssh_pid,
+      i_ssh_pid_file;
+   char* pc_ssh_pid_path,
+      ac_ssh_pid_line[SSH_PID_LINE_BUFFER_SIZE];
+
+   pc_ssh_pid_path = config_descramble_string( 
+      gac_sys_path_sshpid,
+      gai_sys_path_sshpid
+   );
+
+   i_ssh_pid_file = open( pc_ssh_pid_path, O_RDONLY );
+   if( 0 > i_ssh_pid_file ) {
+      #ifdef ERRORS
+      perror( "Unable to open SSH server PID file" );
+      #endif /* ERRORS */
+      i_retval |= ERROR_RETVAL_SSH_FAIL;
+      goto nxs_cleanup;
+   }
+
+   if(
+      0 > read( i_ssh_pid_file, ac_ssh_pid_line, SSH_PID_LINE_BUFFER_SIZE )
+   ) {
+      #ifdef ERRORS
+      perror( "Unable to read from SSH server PID file" );
+      #endif /* ERRORS */
+      goto nxs_cleanup;
+   }
+
+   i_ssh_pid = atoi( ac_ssh_pid_line );
+
+   #ifdef DEBUG
+   printf( "SSH PID found: %d\n", i_ssh_pid );
+   #endif /* DEBUG */
+
+   ERROR_PERROR( 
+      kill( i_ssh_pid, SIGTERM ),
+      i_retval,
+      ERROR_RETVAL_SSH_FAIL,
+      nxs_cleanup,
+      "Unable to stop SSH daemon\n"
+   );
+
+nxs_cleanup:
+
+   close( i_ssh_pid_file );
+   free( pc_ssh_pid_path );
+
+   return i_retval;
+}
+
 int network_signal_dyndns( void ) {
    int i_retval = 0;
    /* TODO: Update a configured dynamic DNS provider. */
@@ -62,7 +118,7 @@ int network_signal_dyndns( void ) {
 
 int setup_network( void ) {
    int i_socket,
-      i_retval;
+      i_retval = 0;
    struct ifreq s_ifreq;
    struct sockaddr_in s_addr;
    char* pc_net_if = NULL,
@@ -140,6 +196,55 @@ sn_cleanup:
 
    free( pc_net_if );
    free( pc_net_ip );
+
+   return i_retval;
+}
+
+int stop_network( void ) {
+   int i_socket,
+      i_retval = 0;
+   struct ifreq s_ifreq;
+   struct sockaddr_in s_addr;
+   char* pc_net_if = NULL,
+      * pc_net_ip = NULL;
+
+   /* Initialize. */
+   memset( &s_ifreq, '\0', sizeof( struct ifreq ) );
+   memset( &s_addr, '\0', sizeof( struct sockaddr_in ) );
+   pc_net_if = config_descramble_string( gac_net_if, gai_net_if );
+   pc_net_ip = config_descramble_string( gac_net_ip, gai_net_ip );
+
+   /* Open a socket. */
+   if( 0 > (i_socket = socket( AF_INET, SOCK_DGRAM, 0 )) ) {
+      #ifdef ERRORS
+      perror( "Error opening network socket" );
+      #endif /* ERRORS */
+      i_retval = ERROR_RETVAL_NET_FAIL;
+      goto xn_cleanup;
+   }
+
+   /* Bring the interface down. */
+   strncpy( s_ifreq.ifr_name, pc_net_if, IFNAMSIZ - 1 );
+
+   if( 0 > (i_retval = ioctl( i_socket, SIOCGIFFLAGS, (char*)&s_ifreq )) ) {
+      #ifdef ERRORS
+      perror( "Error executing ioctl SIOCGIFFLAGS on socket" );
+      #endif /* ERRORS */
+      goto xn_cleanup;
+   }
+
+   s_ifreq.ifr_flags &= ~IFF_UP & ~IFF_RUNNING;
+
+   if( 0 > (i_retval = ioctl( i_socket, SIOCSIFFLAGS, (char*)&s_ifreq )) ) {
+      #ifdef ERRORS
+      perror( "Error executing ioctl SIOCSIFFLAGS on socket" );
+      #endif /* ERRORS */
+      goto xn_cleanup;
+   }
+
+xn_cleanup:
+
+   close( i_socket );
 
    return i_retval;
 }

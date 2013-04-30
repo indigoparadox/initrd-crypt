@@ -24,7 +24,7 @@ endif
 
 image: init
 	$(eval TMP = $(shell mktemp -d))
-	rsync -avz $(IMGDIR)/ $(TMP)/initrd/
+	rsync -avz --exclude ".keep" $(IMGDIR)/ $(TMP)/initrd/
 	# TODO: Make sure static files are static and dynamic files aren't.
 	$(foreach var,$(IMGBINSTATIC),cp -L /$(var) $(TMP)/initrd/$(var);)
 	$(foreach var,$(IMGBINDYNAMIC),cp -L /$(var) $(TMP)/initrd/$(var);)
