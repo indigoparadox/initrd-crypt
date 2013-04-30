@@ -18,7 +18,7 @@
 /* = Function Prototypes = */
 
 int attempt_decrypt( char* );
-int prompt_decrypt( void );
+int prompt_decrypt( int, int );
 
 #endif /* CRYSCO_H */
 

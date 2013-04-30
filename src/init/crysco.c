@@ -97,36 +97,22 @@ ad_cleanup:
 /* Purpose: Prompt for keys for attempts up to HOST_MAX_ATTEMPTS and call the *
  *          decryption attempt routine for each key provided.                 */
 /* Return: 0 on success, 1 on failure.                                        */
-int prompt_decrypt( void ) {
-   char* pc_key_buffer,
-      c_char;
-   int i_key_buffer_size = 1,
-      i_key_index = 0,
-      i_key_attempts = 0,
+int prompt_decrypt( int i_stdin_fileno_in, int i_stdout_fileno_in ) {
+   char* pc_key_buffer;
+   int i_key_attempts = 0,
       i_retval = 0;
    
    while( CONFIG_MAX_ATTEMPTS > i_key_attempts ) {
 
       /* Disable password echo. */
-      //console_echo_off();
+      console_echo_off();
 
       /* Get a password from stdin. */
-      pc_key_buffer = calloc( i_key_buffer_size, sizeof( char ) );
-      printf( "Insufficient data.\n" );
-      while( (c_char = getchar()) ) {
-         if( '\n' == c_char && 1 != i_key_buffer_size ) {
-            break;
-         }
-
-         /* TODO: Handle backspace/delete properly. */
-         pc_key_buffer[i_key_index] = c_char;
-         i_key_index++;
-         i_key_buffer_size++;
-         pc_key_buffer = realloc( pc_key_buffer, i_key_buffer_size );
-      }
+      dprintf( i_stdout_fileno_in, "Insufficient data.\n" );
+      pc_key_buffer = console_prompt_string( i_stdin_fileno_in );
 
       #ifdef DEBUG
-      printf( "Key: %s", pc_key_buffer );
+      dprintf( i_stdout_fileno_in, "Key: %s", pc_key_buffer );
       #endif /* DEBUG */
 
       /* Echo in case we drop to console or something. */
@@ -144,8 +130,6 @@ int prompt_decrypt( void ) {
 
       /* Iteration cleanup. */
       free( pc_key_buffer );
-      i_key_buffer_size = 1;
-      i_key_index = 0;
 
       /* Break the loop to boot or reboot on certain errors. */
       if( !i_retval ) {

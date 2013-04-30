@@ -4,7 +4,9 @@
 #include "network.h"
 
 #ifdef SERIAL
+int gi_serial_child_pid = 0;
 int gi_serial_port = 0;
+extern char* gpc_serial_listen;
 #endif /* SERIAL */
 
 #ifdef NET
@@ -98,25 +100,18 @@ sn_cleanup:
 #ifdef SERIAL
 
 int setup_serial( void ) {
-   int i_retval = 0,
-      i_serial_pid;
-   char* pc_serial_dev,
-      * pc_prompt_argv_string,
+   int i_retval = 0;
+   char* pc_prompt_argv_string,
       ** ppc_prompt_argv;
 
-   pc_serial_dev = config_descramble_string( gac_serial_dev, gai_serial_dev );
    pc_prompt_argv_string = config_descramble_string(
-      gac_command_prompt, gai_command_prompt
+      gac_command_serial, gai_command_serial
    );
    ppc_prompt_argv = config_split_string_array( pc_prompt_argv_string );
 
-   /* For now, just open up a serial port and launch a prompt process on it. */
-   i_serial_pid = fork();
-   if( 0 == i_serial_pid ) {
-      /* This is the child process. */
-
-      /* Open the serial port. */
-      gi_serial_port = open( pc_serial_dev, O_RDWR | O_NOCTTY | O_NDELAY );
+   if( NULL != gpc_serial_listen ) {
+      /* A serial port was specified to listen on, so open it up. */
+      gi_serial_port = open( gpc_serial_listen, O_RDWR | O_NOCTTY | O_NDELAY );
       if( 0 > gi_serial_port ) {
          #ifdef ERRORS
          perror( "Unable to open serial port" );
@@ -125,23 +120,27 @@ int setup_serial( void ) {
          goto ss_cleanup;
       } else {
          fcntl( gi_serial_port, F_SETFL, FNDELAY );
+         printf( "serial: %d\n", gi_serial_port );
       }
+   } else if( 1 == getpid() ) {
+      /* We're the parent, starting serial prompts. */
 
-      /* Close existing stdin/stdout and attach them to the parent's pipes. */
-      close( fileno( stdin ) );
-      close( fileno( stdout ) );
-      close( fileno( stderr ) );
-      dup2( gi_serial_port, fileno( stdin ) );
-      dup2( gi_serial_port, fileno( stdout ) );
-      dup2( gi_serial_port, fileno( stderr ) );
+      /* For now, just open up a serial port and launch a prompt process on   *
+       * it.                                                                  */
+      gi_serial_child_pid = fork();
+      if( 0 == gi_serial_child_pid ) {
+         /* We're deaf/dumb on the main terminal. */
+         /*close( fileno( stdin ) );
+         close( fileno( stdout ) );
+         close( fileno( stderr ) );*/
 
-      /* Start the prompt. */
-      execv( ppc_prompt_argv[0], ppc_prompt_argv );
+         /* This is the child process. Start the prompt. */
+         execv( ppc_prompt_argv[0], ppc_prompt_argv );
+      }
    }
 
 ss_cleanup:
 
-   free( pc_serial_dev );
    config_free_string_array( ppc_prompt_argv );
 
    return i_retval;
