@@ -17,7 +17,7 @@ void console_hide( void );
 void console_show( void );
 void console_echo_off( void );
 void console_echo_on( void );
-char* console_prompt_string( int );
+char* console_prompt_string( void );
 
 #ifdef CONSOLE
 int console_shell( void );

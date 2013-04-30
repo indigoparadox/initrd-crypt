@@ -97,7 +97,7 @@ ad_cleanup:
 /* Purpose: Prompt for keys for attempts up to HOST_MAX_ATTEMPTS and call the *
  *          decryption attempt routine for each key provided.                 */
 /* Return: 0 on success, 1 on failure.                                        */
-int prompt_decrypt( int i_stdin_fileno_in, int i_stdout_fileno_in ) {
+int prompt_decrypt( void ) {
    char* pc_key_buffer;
    int i_key_attempts = 0,
       i_retval = 0;
@@ -108,12 +108,8 @@ int prompt_decrypt( int i_stdin_fileno_in, int i_stdout_fileno_in ) {
       console_echo_off();
 
       /* Get a password from stdin. */
-      dprintf( i_stdout_fileno_in, "Insufficient data.\n" );
-      pc_key_buffer = console_prompt_string( i_stdin_fileno_in );
-
-      #ifdef DEBUG
-      dprintf( i_stdout_fileno_in, "Key: %s", pc_key_buffer );
-      #endif /* DEBUG */
+      printf( "Insufficient data.\n" );
+      pc_key_buffer = console_prompt_string();
 
       /* Echo in case we drop to console or something. */
       console_echo_on();

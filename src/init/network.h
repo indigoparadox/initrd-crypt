@@ -24,10 +24,5 @@ int setup_network( void );
 void stop_network( void );
 #endif /* NET */
 
-#ifdef SERIAL
-int setup_serial( void );
-int stop_serial( void );
-#endif /* SERIAL */
-
 #endif /* NETWORK_H */
 

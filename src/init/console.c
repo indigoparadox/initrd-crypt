@@ -83,28 +83,23 @@ int console_shell( void ) {
 }
 #endif /* CONSOLE */
 
-char* console_prompt_string( int i_stdin_fileno_in ) {
+char* console_prompt_string( void ) {
    char* pc_key_buffer = NULL,
       c_char;
    int i_key_buffer_size = 1,
       i_key_index = 0;
 
-   if( fileno( stdin ) == i_stdin_fileno_in ) {
-      pc_key_buffer = calloc( i_key_buffer_size, sizeof( char ) );
-      while( (c_char = getchar()) ) {
-         if( '\n' == c_char && 1 != i_key_buffer_size ) {
-            break;
-         }
-
-         /* TODO: Handle backspace/delete properly. */
-         pc_key_buffer[i_key_index] = c_char;
-         i_key_index++;
-         i_key_buffer_size++;
-         pc_key_buffer = realloc( pc_key_buffer, i_key_buffer_size );
+   pc_key_buffer = calloc( i_key_buffer_size, sizeof( char ) );
+   while( (c_char = getchar()) ) {
+      if( '\n' == c_char && 1 != i_key_buffer_size ) {
+         break;
       }
-   } else {
-      /* Get a line from the serial port. */
 
+      /* TODO: Handle backspace/delete properly. */
+      pc_key_buffer[i_key_index] = c_char;
+      i_key_index++;
+      i_key_buffer_size++;
+      pc_key_buffer = realloc( pc_key_buffer, i_key_buffer_size );
    }
 
    return pc_key_buffer;

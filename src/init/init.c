@@ -41,17 +41,6 @@ void cleanup_system( int i_retval_in ) {
    done */
    #endif /* NET */
 
-   #ifdef SERIAL
-   /* TODO: Try to stop serial port. */
-   ERROR_PRINTF(
-      stop_serial(),
-      i_retval_in,
-      ERROR_RETVAL_SERIAL_FAIL,
-      boot_failed,
-      "Unable to stop serial subsystem.\n"
-   );
-   #endif /* SERIAL */
-
    /* Prepare the system to load the "real" init (or reboot). */
    ERROR_PRINTF(
       mount_probe_usr(),
@@ -119,19 +108,6 @@ int main( int argc, char* argv[] ) {
       i_retval_local = 0,
       i;
 
-   for( i = 1 ; i < argc ; i++ ) {
-      printf( "pid: %d argv: %s\n", getpid(), argv[i] );
-      if( !strncmp( "-t", argv[i], 2 ) ) {
-         /* We're being launched as a serial listener. */
-         i++;
-         if( i < argc ) {
-            gpc_serial_listen = xasprintf( "%s", argv[i] );
-         }
-      }
-   }
-
-   printf( "pid: %d stty: %s\n", getpid(), gpc_serial_listen );
-
    /* Protect ourselves against simple potential bypasses. */
    signal( SIGTERM, signal_handler );
    signal( SIGINT, signal_handler );
@@ -163,43 +139,24 @@ int main( int argc, char* argv[] ) {
       /* TODO: Start the splash screen (deprecated). */
    }
 
-   #ifdef SERIAL
-   /* Both parent and child have to make adjustments for listening on the     *
-    * serial port.                                                            */
-   i_retval = setup_serial();
-   if( i_retval ) {
-      goto main_cleanup;
-   }
-   #endif /* SERIAL */
+   /* Start the challenge! */
+   i_retval = prompt_decrypt();
 
-   if( 1 != getpid() ) {
+   if( 1 != getpid() && !i_retval ) {
       /* We're being called as a sub-prompt, so just prompt to decrypt and    *
        * exit on success or failure.                                          */
-
-      if( NULL != gpc_serial_listen ) {
-         i_retval = prompt_decrypt( gi_serial_port, gi_serial_port );
-      } else {
-         i_retval = prompt_decrypt( fileno( stdin ), fileno( stdout ) );
+      #ifdef DEBUG
+      printf( "Killing init. Press any key.\n" );
+      getchar();
+      #endif /* DEBUG */
+      i_retval_local = kill( 1, SIGTERM );
+      if( i_retval_local ) {
+         /* This isn't as important as the errorlevel we're exiting with. */
+         #ifdef ERRORS
+         perror( "Could not kill init" );
+         #endif /* ERRORS */
+         goto main_cleanup;
       }
-      if( !i_retval ) {
-         #ifdef DEBUG
-         printf( "Killing init. Press any key.\n" );
-         getchar();
-         #endif /* DEBUG */
-         i_retval_local = kill( 1, SIGTERM );
-         if( i_retval_local ) {
-            /* This isn't as important as the errorlevel we're exiting with. */
-            #ifdef ERRORS
-            perror( "Could not kill init" );
-            #endif /* ERRORS */
-         }
-      }
-      goto main_cleanup;
-   }
-
-   if( 1 == getpid() ) {
-      /* Start the challenge! */
-      i_retval = prompt_decrypt( fileno( stdin ), fileno( stdout ) );
    }
 
 main_cleanup:
