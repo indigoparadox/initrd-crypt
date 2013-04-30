@@ -122,7 +122,12 @@ int setup_network( void ) {
    struct ifreq s_ifreq;
    struct sockaddr_in s_addr;
    char* pc_net_if = NULL,
-      * pc_net_ip = NULL;
+      * pc_net_ip = NULL,
+      * pc_vlan_if = NULL;
+   #ifdef VLAN
+   struct vlan_ioctl_args s_vlreq;
+   #endif /* VLAN */
+
 
    /* Initialize. */
    memset( &s_ifreq, '\0', sizeof( struct ifreq ) );
@@ -130,31 +135,72 @@ int setup_network( void ) {
    pc_net_if = config_descramble_string( gac_net_if, gai_net_if );
    pc_net_ip = config_descramble_string( gac_net_ip, gai_net_ip );
 
+   #ifdef VLAN
+   pc_vlan_if = config_descramble_string( gac_net_vlan_if, gai_net_vlan_if );
+   #endif /* VLAN */
+
    /* Open a socket. */
    if( 0 > (i_socket = socket( AF_INET, SOCK_DGRAM, 0 )) ) {
       #ifdef ERRORS
       perror( "Error opening network socket" );
       #endif /* ERRORS */
-      i_retval = ERROR_RETVAL_NET_FAIL;
+      i_retval |= ERROR_RETVAL_NET_FAIL;
       goto sn_cleanup;
    }
 
-   /* Bring the interface up. */
-   strncpy( s_ifreq.ifr_name, pc_net_if, IFNAMSIZ - 1 );
+   #ifdef VLAN
+   /* Setup the VLAN. */
+   memset( &s_vlreq, '\0', sizeof( struct vlan_ioctl_args ) );
 
+   strncpy( s_vlreq.device1, pc_vlan_if, IFNAMSIZ - 1 );
+   s_vlreq.u.VID = VLAN_VID;
+   s_vlreq.cmd = ADD_VLAN_CMD;
+
+   if( 0 > ioctl( i_socket, SIOCSIFVLAN, & s_vlreq) ) {
+      #ifdef ERRORS
+      perror( "Error executing SIOCSIFVLAN on socket" );
+      #endif /* ERRORS */
+      i_retval |= ERROR_RETVAL_VLAN_FAIL;
+      goto sn_cleanup;
+   }
+
+   /* Bring the VLAN parent interface up. */
+   strncpy( s_ifreq.ifr_name, pc_vlan_if, IFNAMSIZ - 1 );
    if( 0 > (i_retval = ioctl( i_socket, SIOCGIFFLAGS, (char*)&s_ifreq )) ) {
       #ifdef ERRORS
       perror( "Error executing ioctl SIOCGIFFLAGS on socket" );
       #endif /* ERRORS */
+      i_retval |= ERROR_RETVAL_NET_FAIL;
       goto sn_cleanup;
    }
-
    s_ifreq.ifr_flags |= IFF_UP | IFF_RUNNING;
-
    if( 0 > (i_retval = ioctl( i_socket, SIOCSIFFLAGS, (char*)&s_ifreq )) ) {
       #ifdef ERRORS
       perror( "Error executing ioctl SIOCSIFFLAGS on socket" );
       #endif /* ERRORS */
+      i_retval |= ERROR_RETVAL_NET_FAIL;
+      goto sn_cleanup;
+   }
+   
+   /* Clean up after the parent interface. */
+   memset( &s_ifreq, '\0', sizeof( struct ifreq ) );
+   #endif /* VLAN */
+
+   /* Bring the interface up. */
+   strncpy( s_ifreq.ifr_name, pc_net_if, IFNAMSIZ - 1 );
+   if( 0 > (i_retval = ioctl( i_socket, SIOCGIFFLAGS, (char*)&s_ifreq )) ) {
+      #ifdef ERRORS
+      perror( "Error executing ioctl SIOCGIFFLAGS on socket" );
+      #endif /* ERRORS */
+      i_retval |= ERROR_RETVAL_NET_FAIL;
+      goto sn_cleanup;
+   }
+   s_ifreq.ifr_flags |= IFF_UP | IFF_RUNNING;
+   if( 0 > (i_retval = ioctl( i_socket, SIOCSIFFLAGS, (char*)&s_ifreq )) ) {
+      #ifdef ERRORS
+      perror( "Error executing ioctl SIOCSIFFLAGS on socket" );
+      #endif /* ERRORS */
+      i_retval |= ERROR_RETVAL_NET_FAIL;
       goto sn_cleanup;
    }
 
@@ -171,6 +217,7 @@ int setup_network( void ) {
       #ifdef ERRORS
       perror( "Error executing ioctl SIOCSIFADDR on socket" );
       #endif /* ERRORS */
+      i_retval |= ERROR_RETVAL_NET_FAIL;
       goto sn_cleanup;
    }
 
@@ -180,6 +227,7 @@ int setup_network( void ) {
       #ifdef ERRORS
       perror( "Error executing ioctl SIOCGIFADDR on socket" );
       #endif /* ERRORS */
+      i_retval |= ERROR_RETVAL_NET_FAIL;
       goto sn_cleanup;
    }
 
@@ -197,6 +245,10 @@ sn_cleanup:
    free( pc_net_if );
    free( pc_net_ip );
 
+   #ifdef VLAN
+   free( pc_vlan_if );
+   #endif /* VLAN */
+
    return i_retval;
 }
 
@@ -206,7 +258,15 @@ int stop_network( void ) {
    struct ifreq s_ifreq;
    struct sockaddr_in s_addr;
    char* pc_net_if = NULL,
-      * pc_net_ip = NULL;
+      * pc_net_ip = NULL,
+      * pc_vlan_if = NULL;
+   #ifdef VLAN
+   struct vlan_ioctl_args s_vlreq;
+   #endif /* VLAN */
+   
+   #ifdef VLAN
+   pc_vlan_if = config_descramble_string( gac_net_vlan_if, gai_net_vlan_if );
+   #endif /* VLAN */
 
    /* Initialize. */
    memset( &s_ifreq, '\0', sizeof( struct ifreq ) );
@@ -225,16 +285,13 @@ int stop_network( void ) {
 
    /* Bring the interface down. */
    strncpy( s_ifreq.ifr_name, pc_net_if, IFNAMSIZ - 1 );
-
    if( 0 > (i_retval = ioctl( i_socket, SIOCGIFFLAGS, (char*)&s_ifreq )) ) {
       #ifdef ERRORS
       perror( "Error executing ioctl SIOCGIFFLAGS on socket" );
       #endif /* ERRORS */
       goto xn_cleanup;
    }
-
    s_ifreq.ifr_flags &= ~IFF_UP & ~IFF_RUNNING;
-
    if( 0 > (i_retval = ioctl( i_socket, SIOCSIFFLAGS, (char*)&s_ifreq )) ) {
       #ifdef ERRORS
       perror( "Error executing ioctl SIOCSIFFLAGS on socket" );
@@ -242,9 +299,48 @@ int stop_network( void ) {
       goto xn_cleanup;
    }
 
+   #ifdef VLAN
+   /* Bring the parent interface down. */
+   strncpy( s_ifreq.ifr_name, pc_vlan_if, IFNAMSIZ - 1 );
+   if( 0 > (i_retval = ioctl( i_socket, SIOCGIFFLAGS, (char*)&s_ifreq )) ) {
+      #ifdef ERRORS
+      perror( "Error executing ioctl SIOCGIFFLAGS on socket" );
+      #endif /* ERRORS */
+      goto xn_cleanup;
+   }
+   s_ifreq.ifr_flags &= ~IFF_UP & ~IFF_RUNNING;
+   if( 0 > (i_retval = ioctl( i_socket, SIOCSIFFLAGS, (char*)&s_ifreq )) ) {
+      #ifdef ERRORS
+      perror( "Error executing ioctl SIOCSIFFLAGS on socket" );
+      #endif /* ERRORS */
+      goto xn_cleanup;
+   }
+
+   /* Delete the VLAN. */
+   memset( &s_vlreq, '\0', sizeof( struct vlan_ioctl_args ) );
+
+   strncpy( s_vlreq.device1, pc_net_if, IFNAMSIZ - 1 );
+   s_vlreq.cmd = DEL_VLAN_CMD;
+
+   if( 0 > ioctl( i_socket, SIOCSIFVLAN, & s_vlreq) ) {
+      #ifdef ERRORS
+      perror( "Error executing SIOCSIFVLAN on socket" );
+      #endif /* ERRORS */
+      i_retval |= ERROR_RETVAL_VLAN_FAIL;
+      goto xn_cleanup;
+   }
+   #endif /* VLAN */
+
 xn_cleanup:
 
    close( i_socket );
+
+   free( pc_net_if );
+   free( pc_net_ip );
+
+   #ifdef VLAN
+   free( pc_vlan_if );
+   #endif /* VLAN */
 
    return i_retval;
 }
