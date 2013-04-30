@@ -16,10 +16,13 @@
 
 #include "config.h"
 #include "error.h"
+#include "util.h"
 
 /* = Function Prototypes = */
 
 #ifdef NET
+int network_start_ssh( void );
+int network_signal_dyndns( void );
 int setup_network( void );
 void stop_network( void );
 #endif /* NET */

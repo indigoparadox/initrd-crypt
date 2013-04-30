@@ -127,7 +127,10 @@ int mount_sys( void ) {
       ms_cleanup,
       "Unable to write mdev to /proc/sys/kernel/hotplug"
    ); */
-   /* TODO: Should we squelch stdout/stderr for this? */
+
+   #ifndef ERRORS
+   console_hide();
+   #endif /* ERRORS */
    ERROR_PRINTF(
       system( "/sbin/mdev -s" ),
       i_retval,
@@ -135,6 +138,9 @@ int mount_sys( void ) {
       ms_cleanup,
       "Problem detected starting mdev.\n"
    );
+   #ifndef ERRORS
+   console_show();
+   #endif /* ERRORS */
 
    #ifdef DEBUG
    printf( "mdev started.\n" );

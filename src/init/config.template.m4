@@ -16,5 +16,7 @@ CONFIG_SCR(command_prompt,`init')
 CONFIG_SCR(command_mdadm,`mdadm --assemble')
 dnl CONFIG_SCR(command_switch_root,`switch_root|/mnt/root|/sbin/init')
 CONFIG_SCR(command_switch_root,`/sbin/init')
+dnl CONFIG_SCR(command_ssh,`/sbin/dropbear|-s|-j|-k|-p|22')
+CONFIG_SCR(command_ssh,`/sbin/dropbear -s -j -k -p %s')
 
 /* = Host-Specific Configuration = */

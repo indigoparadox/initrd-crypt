@@ -132,6 +132,11 @@ int main( int argc, char* argv[] ) {
       if( i_retval ) {
          goto main_cleanup;
       }
+
+      i_retval |= network_start_ssh();
+      if( i_retval ) {
+         goto main_cleanup;
+      }
       #endif /* NET */
 
       /* TODO: Load any directed kernel modules. */
