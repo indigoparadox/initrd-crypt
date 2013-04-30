@@ -11,6 +11,8 @@ endif
 OBJS = config.o init.o mount.o crysco.o console.o network.o util.o
 BIN = init
 ALLDEPS := init
+HOSTSDIR := $(shell pwd)/../../examples
+HOSTNAME := test
 ifeq ($(RELEASE),release)
 	ALLDEPS += strip
 endif
@@ -28,10 +30,10 @@ strip:
 config.o: config.c
 	cat config_base.template.m4 \
 		config.template.m4 \
-		../../examples/test.h.m4 | m4 > config_base.h
+		$(HOSTSDIR)/$(HOSTNAME).h.m4 | m4 > config_base.h
 	cat config_extern.template.m4 \
 		config.template.m4 \
-		../../examples/test.h.m4 | m4 > config_extern.h
+		$(HOSTSDIR)/$(HOSTNAME).h.m4 | m4 > config_extern.h
 	$(CC) $(CFLAGS) -o $@ -c config.c
 	rm srand
 

@@ -4,6 +4,9 @@
 RELEASE=release
 IMGDIR = ./image
 DESTDIR := $(shell pwd)/build
+HOSTSDIR := $(shell pwd)/examples
+# TODO: Dynamically determine hostname?
+HOSTNAME := test
 # TODO Dynamically determine LD version.
 #LDVER := $(shell ls /lib/ld-*.so | awk 'BEGIN {FS="-"} {print $2}' | cut -c -4)
 LDVER := 2.15
@@ -26,13 +29,18 @@ image: init
 	$(foreach var,$(IMGBINSTATIC),cp -L /$(var) $(TMP)/initrd/$(var);)
 	$(foreach var,$(IMGBINDYNAMIC),cp -L /$(var) $(TMP)/initrd/$(var);)
 	cp src/init/init $(TMP)/initrd/init
+	if [ ! -f $(HOSTSDIR)/$(HOSTNAME)_rsa ]; then \
+		dropbearkey -f $(HOSTSDIR)/$(HOSTNAME)_rsa -t rsa -s 4096; fi
+	cp $(HOSTSDIR)/$(HOSTNAME)_rsa \
+		$(TMP)/initrd/etc/dropbear/dropbear_rsa_host_key
 	if [ -f $(DESTDIR)/initrd.gz ]; then rm $(DESTDIR)/initrd.gz; fi
 	cd $(TMP)/initrd && find . | cpio -ov --format=newc > $(DESTDIR)/initrd
 	gzip $(DESTDIR)/initrd
 	rm -rf $(TMP)
 
 init:
-	cd src/init && make clean && make RELEASE=$(RELEASE)
+	cd src/init && make clean && make RELEASE=$(RELEASE) \
+		HOSTSDIR=$(HOSTSDIR) HOSTNAME=$(HOSTNAME)
 
 .PHONY: init image
 
