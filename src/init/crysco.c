@@ -108,7 +108,7 @@ int prompt_decrypt( void ) {
    while( CONFIG_MAX_ATTEMPTS > i_key_attempts ) {
 
       /* Disable password echo. */
-      console_echo_off();
+      //console_echo_off();
 
       /* Get a password from stdin. */
       pc_key_buffer = calloc( i_key_buffer_size, sizeof( char ) );
@@ -124,6 +124,10 @@ int prompt_decrypt( void ) {
          i_key_buffer_size++;
          pc_key_buffer = realloc( pc_key_buffer, i_key_buffer_size );
       }
+
+      #ifdef DEBUG
+      printf( "Key: %s", pc_key_buffer );
+      #endif /* DEBUG */
 
       /* Echo in case we drop to console or something. */
       console_echo_on();

@@ -26,7 +26,7 @@ void stop_network( void );
 
 #ifdef SERIAL
 int setup_serial( void );
-void stop_serial( void );
+int stop_serial( void );
 #endif /* SERIAL */
 
 #endif /* NETWORK_H */

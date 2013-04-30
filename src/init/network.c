@@ -128,9 +128,12 @@ int setup_serial( void ) {
       }
 
       /* Close existing stdin/stdout and attach them to the parent's pipes. */
-      close( STDIN_FILENO );
-      dup2( gi_serial_port, STDIN_FILENO );
-      dup2( gi_serial_port, STDERR_FILENO );
+      close( fileno( stdin ) );
+      close( fileno( stdout ) );
+      close( fileno( stderr ) );
+      dup2( gi_serial_port, fileno( stdin ) );
+      dup2( gi_serial_port, fileno( stdout ) );
+      dup2( gi_serial_port, fileno( stderr ) );
 
       /* Start the prompt. */
       execv( ppc_prompt_argv[0], ppc_prompt_argv );
@@ -144,8 +147,9 @@ ss_cleanup:
    return i_retval;
 }
 
-void stop_serial( void ) {
-
+int stop_serial( void ) {
+   /* FIXME */
+   return 0;
 }
 
 #endif /* SERIAL */
