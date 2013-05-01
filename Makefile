@@ -34,6 +34,7 @@ image: init
 		dropbearkey -f $(HOSTSDIR)/$(HOSTNAME)_rsa -t rsa -s 4096; fi
 	cp $(HOSTSDIR)/$(HOSTNAME)_rsa \
 		$(TMP)/initrd/etc/dropbear/dropbear_rsa_host_key
+	cp $(HOSTSDIR)/authorized_keys $(TMP)/initrd/root/.ssh
 	if [ -f $(DESTDIR)/initrd.gz ]; then rm $(DESTDIR)/initrd.gz; fi
 	cd $(TMP)/initrd && find . | cpio -ov --format=newc > $(DESTDIR)/initrd
 	gzip $(DESTDIR)/initrd
