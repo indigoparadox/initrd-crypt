@@ -1,4 +1,6 @@
 
+#include "config_extern.h"
+
 #include <stdio.h>
 #include <unistd.h>
 #include <signal.h>
@@ -7,55 +9,84 @@
 
 #include "crysco.h"
 #include "mount.h"
+#include "network.h"
+#include "error.h"
 
-#define CMDLINE_MAX_SIZE 255
-
-/* Purpose: Wait until the main devices are decrypted and start the system.   */
-int action_crypt( void ) {
-
-   #ifdef NET
-   /* TODO: Try to start network listener. */
-   #endif /* NET */
-
-   /* Get the user password. */
-   return prompt_decrypt();
-}
+char* gpc_serial_listen = NULL;
+extern int gi_serial_port;
 
 /* Purpose: Tidy up the system and prepare/enact the "real" boot process.     *
  *          This should only be called from init/pid 1.                       */
-int cleanup_system( int i_retval_in ) {
-   char* ac_command_switch_root[] = {
-      "switch_root",
-      "/mnt/root",
-      "/sbin/init"
-   };
+void cleanup_system( int i_retval_in ) {
+   char* pc_mpoint_root;
 
-   #ifdef NET
-   /* TODO: Try to stop network. */
-   /* killall dropbear 2>/dev/null
-   for DEV_ITER in `/bin/cat /proc/net/dev | /bin/awk '{print $1}' | \
-      /bin/grep ":$" | /bin/sed s/.$//`
-   do
-      ifconfig $DEV_ITER down 2>/dev/null
-   done */
-   #endif /* NET */
+   pc_mpoint_root = config_descramble_string(
+      gac_sys_mpoint_root,
+      gai_sys_mpoint_root
+   );
+
+   if( i_retval_in ) {
+      /* Drop to console or whatever without trying to clean up if we already *
+       * have an error.                                                       */
+      goto boot_failed;
+   }
 
    /* Prepare the system to load the "real" init (or reboot). */
-   if( !i_retval_in ) {
-      i_retval_in = mount_probe_usr();
-   }
-   umount_sys();
+
+   #ifdef NET
+   ERROR_PRINTF(
+      network_stop_ssh(),
+      i_retval_in,
+      ERROR_RETVAL_SSH_FAIL,
+      boot_failed,
+      "Unable to stop SSH daemon.\n"
+   );
+
+   ERROR_PRINTF(
+      stop_network(),
+      i_retval_in,
+      ERROR_RETVAL_NET_FAIL,
+      boot_failed,
+      "Unable to stop network.\n"
+   );
+   #endif /* NET */
+
+   ERROR_PRINTF(
+      mount_probe_usr(),
+      i_retval_in,
+      ERROR_RETVAL_SYSFS_FAIL,
+      boot_failed,
+      "Unable to detect or mount usr directory.\n"
+   );
+
+   ERROR_PRINTF(
+      umount_sys(),
+      i_retval_in,
+      ERROR_RETVAL_SYSFS_FAIL,
+      boot_failed,
+      "Unable to unmount system directories.\n"
+   );
 
    /* Execute switchroot on success, reboot on failure. */
-   if( !i_retval_in ) {
-      #ifdef DEBUG
-      printf( "Boot ready.\n" );
-      getchar();
-      #endif /* DEBUG */
+   ERROR_PRINTF(
+      mount_switch_root( pc_mpoint_root ),
+      i_retval_in,
+      ERROR_RETVAL_ROOT_FAIL,
+      boot_failed,
+      "Unable to chroot.\n"
+   );
 
-      /* Switchroot */
-      execv( ac_command_switch_root[0], ac_command_switch_root );
-   } else {
+boot_failed:
+
+   free( pc_mpoint_root );
+
+   #if defined DEBUG && defined CONSOLE
+   if( i_retval_in ) {
+      console_shell();
+   }
+   #endif /* DEBUG, CONSOLE */
+   
+   if( i_retval_in ) {
       #ifdef DEBUG
       printf( "Boot failed.\n" );
       getchar();
@@ -64,8 +95,6 @@ int cleanup_system( int i_retval_in ) {
       /* Reboot */
       reboot( LINUX_REBOOT_CMD_RESTART );
    }
-
-   return i_retval_in;
 }
 
 void signal_handler( int i_signum_in ) {
@@ -84,8 +113,9 @@ void signal_handler( int i_signum_in ) {
 }
 
 int main( int argc, char* argv[] ) {
-   int i,
-      i_retval = 0;
+   int i_retval = 0,
+      i_retval_local = 0,
+      i;
 
    /* Protect ourselves against simple potential bypasses. */
    signal( SIGTERM, signal_handler );
@@ -94,40 +124,59 @@ int main( int argc, char* argv[] ) {
 
    if( 1 == getpid() ) {
       /* We're being called as init, so set the system up. */
-      i_retval = mount_sys();
-      if( i_retval ) {
-         goto main_cleanup;
-      }
+      ERROR_PRINTF(
+         mount_sys(),
+         i_retval,
+         ERROR_RETVAL_SYSFS_FAIL,
+         main_cleanup,
+         "There was a problem mounting dynamic system filesystems.\n"
+      );
+
       i_retval = mount_mds();
       if( i_retval ) {
          goto main_cleanup;
       }
+      #ifdef NET
+      i_retval = setup_network();
+      if( i_retval ) {
+         goto main_cleanup;
+      }
+
+      i_retval |= network_start_ssh();
+      if( i_retval ) {
+         goto main_cleanup;
+      }
+      #endif /* NET */
 
       /* TODO: Load any directed kernel modules. */
 
       /* TODO: Start the splash screen (deprecated). */
    }
 
-   /* See if we're being called as a prompt only. */
-   for( i = 1 ; i < argc ; i++ ) {
-      if( !strncmp( "-p", argv[i], 2 ) ) {
-         /* Just prompt to decrypt and exit (signaling main process to clean  *
-          * up if decrypt is successful!)                                     */
-         i_retval = prompt_decrypt();
-         if( !i_retval ) {
-            kill( 1, SIGUSR1 );
-         }
+   /* Start the challenge! */
+   i_retval = prompt_decrypt();
+
+   if( 1 != getpid() && !i_retval ) {
+      /* We're being called as a sub-prompt, so just prompt to decrypt and    *
+       * exit on success or failure.                                          */
+      #ifdef DEBUG
+      printf( "Killing init. Press any key.\n" );
+      getchar();
+      #endif /* DEBUG */
+      i_retval_local = kill( 1, SIGTERM );
+      if( i_retval_local ) {
+         /* This isn't as important as the errorlevel we're exiting with. */
+         #ifdef ERRORS
+         perror( "Could not kill init" );
+         #endif /* ERRORS */
          goto main_cleanup;
       }
    }
 
-   /* Start the challenge! */
-   i_retval = action_crypt();
-
 main_cleanup:
 
    if( 1 == getpid() ) {
-      i_retval = cleanup_system( i_retval );
+      cleanup_system( i_retval );
    }
 
    return i_retval;

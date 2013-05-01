@@ -10,9 +10,60 @@
 #define ERROR_RETVAL_ACTION_FAIL 32
 #define ERROR_RETVAL_DECRYPT_FAIL 64 /* Doesn't count root probe failure. */
 #define ERROR_RETVAL_CONSOLE_DONE 128 /* Not technically an error. */
+#define ERROR_RETVAL_NET_FAIL 256
+#define ERROR_RETVAL_SERIAL_FAIL 512
+#define ERROR_RETVAL_MDEV_FAIL 1024
+#define ERROR_RETVAL_SSH_FAIL 2048
+#define ERROR_RETVAL_VLAN_FAIL 4096
 
 /* = Macros = */
+
+/* TODO: Get rid of this outdated macro. */
 #define PRINTF_ERROR( ... ) fprintf( stderr, __VA_ARGS__ );
+
+#ifdef ERRORS 
+
+#define ERROR_PRINTF( test, retval, errno, golabel, ... ) \
+   if( test ) { \
+      fprintf( stderr, __VA_ARGS__ ); \
+      retval |= errno; \
+      goto golabel; \
+   }
+
+#define ERROR_PERROR( test, retval, errno, golabel, errmsg ) \
+   if( test ) { \
+      perror( errmsg ); \
+      retval |= errno; \
+      goto golabel; \
+   }
+
+#define ERROR_PERROR_NOBREAK( test, retval, errno, errmsg ) \
+   if( test ) { \
+      perror( errmsg ); \
+      retval |= errno; \
+   }
+
+#else
+
+#define ERROR_PRINTF( test, retval, errno, golabel, ... ) \
+   if( test ) { \
+      retval |= errno; \
+      goto golabel; \
+   }
+
+#define ERROR_PERROR( test, retval, errno, golabel, errmsg ) \
+   if( test ) { \
+      retval |= errno; \
+      goto golabel; \
+   }
+
+#define ERROR_PERROR_NOBREAK( test, errmsg ) \
+   if( test ) { \
+      retval |= errno; \
+   }
+
+#endif /* ERRORS */
+   
 
 #endif /* ERROR_H */
 

@@ -28,7 +28,6 @@ int umount_sys( void ) {
 
    /* Dismount the devices in the reverse order in which they were mounted. */
    while( 1 ) {
-      /* TODO: Handle things keeping e.g. /dev open. */
       i_retval = umount2( ps_sys_fs_iter->name, MNT_FORCE );
       if( i_retval ) {
          #ifdef ERRORS
@@ -58,7 +57,8 @@ int umount_sys( void ) {
 /* Return: 0 on success, 1 on failure.                                        */
 /* Notes: pc_sys_fs_string format is mount_point<block_device|fs_type>        */
 int mount_sys( void ) {
-   int i_retval = 0;
+   int i_retval = 0,
+      i_hotplug_handle;
    char* pc_sys_fs_string = NULL;
    struct string_holder* ps_sys_fs = NULL,
       * ps_sys_fs_iter = NULL;
@@ -113,6 +113,43 @@ int mount_sys( void ) {
    free( pc_sys_fs_string );
    config_free_string_holders( ps_sys_fs );
 
+   /* Launch mdev to handle /dev FS. */
+   #ifdef DEBUG
+   printf( "Starting mdev...\n" );
+   #endif /* DEBUG */
+
+   i_hotplug_handle = open( "/proc/sys/kernel/hotplug", O_WRONLY );
+   
+   /* ERROR_PERROR(
+      write( i_hotplug_handle, "/sbin/mdev", 10 ),
+      i_retval,
+      ERROR_RETVAL_MDEV_FAIL,
+      ms_cleanup,
+      "Unable to write mdev to /proc/sys/kernel/hotplug"
+   ); */
+
+   #ifndef ERRORS
+   console_hide();
+   #endif /* ERRORS */
+   ERROR_PRINTF(
+      system( "/sbin/mdev -s" ),
+      i_retval,
+      ERROR_RETVAL_MDEV_FAIL,
+      ms_cleanup,
+      "Problem detected starting mdev.\n"
+   );
+   #ifndef ERRORS
+   console_show();
+   #endif /* ERRORS */
+
+   #ifdef DEBUG
+   printf( "mdev started.\n" );
+   #endif /* DEBUG */
+
+ms_cleanup:
+
+   close( i_hotplug_handle );
+
    return i_retval;
 }
 
@@ -121,9 +158,6 @@ int mount_sys( void ) {
 int mount_mds( void ) {
    int i_command_mdadm_strlen = 0,
       i_retval = 0,
-      i_stdout_temp = 0,
-      i_stderr_temp = 0,
-      i_null_fd = 0,
       i;
    char* pc_template_mdadm = NULL,
       /* * pc_command_mdadm = NULL, */
@@ -186,25 +220,19 @@ int mount_mds( void ) {
 
       /* Close stdout/stderr if we're squelching errors. */
       #ifndef ERRORS
-      dup2( 1, i_stdout_temp );
-      dup2( 2, i_stderr_temp );
-      i_null_fd = open( "/dev/null", O_WRONLY );
-      dup2( i_null_fd, 1 );
-      dup2( i_null_fd, 2 );
+      console_hide();
       #endif /* ERRORS */
 
       i_retval = system( ac_command_mdadm );
 
       /* Restore stdout/stderr. */
       #ifndef ERRORS
-      dup2( i_stdout_temp, 1 );
-      dup2( i_stderr_temp, 2 );
-      close( i_null_fd );
+      console_show();
       #endif /* ERRORS */
 
       /* free( pc_command_mdadm ); */
       
-      printf( "%s\n", ac_command_mdadm );
+      /* printf( "%s\n", ac_command_mdadm ); */
 
       if( i_retval ) {
          #ifdef ERRORS
@@ -249,13 +277,13 @@ int mount_probe_root( void ) {
    DIR* p_dev_dir;
    struct dirent* p_dev_entry;
    regex_t s_regex;
-   int i_retval = 0;
+   int i_retval = 0,
+      i = 0;
    char* pc_root_dev = NULL,
       * pc_path_mapper = NULL,
       * pc_path_mapper_s = NULL,
       * pc_root_mountpoint = NULL,
-      * pc_fs_types_string = NULL,
-      * pc_fs_iter;
+      * pc_fs_types_string = NULL;
    char** ppc_fs_types = NULL;
 
    /* Initialize strings, etc. */
@@ -283,7 +311,7 @@ int mount_probe_root( void ) {
       gac_sys_fs_types,
       gai_sys_fs_types
    );
-   ppc_fs_types = config_split_string_array( pc_fs_types );
+   ppc_fs_types = config_split_string_array( pc_fs_types_string );
 
    /* Try to find an appropriate root device. */
    p_dev_dir = opendir( pc_path_mapper );
@@ -303,8 +331,7 @@ int mount_probe_root( void ) {
       /* Make sure we picked up a root device. */
       if( NULL == pc_root_dev ) {
          #ifdef ERRORS
-         /* TODO: Create a macro/function to print errors to stderr. */
-         printf( "Unable to find root device.\n" );
+         PRINTF_ERROR( "Unable to find root device.\n" );
          #endif /* ERRORS */
          i_retval = ERROR_RETVAL_ROOT_FAIL;
          goto mpr_cleanup;
@@ -319,19 +346,33 @@ int mount_probe_root( void ) {
    }
 
    /* Attempt to mount the selected root device. */
-   pc_fs_iter = ppc_fs_types;
-   while( NULL != pc_fs_iter ) {
-   if( mount( pc_root_dev, pc_root_mountpoint, "ext3", MS_RDONLY, "" ) ) {
-      /* Keep trying until we find an FS that works. */
-      if( mount( pc_root_dev, pc_root_mountpoint, "ext2", MS_RDONLY, "" ) ) {
-         #ifdef ERRORS
-         /* printf( "%s %s\n", pc_root_dev, pc_root_mountpoint ); */
-         perror( "Unable to mount root device" );
-         #endif /* ERRORS */
-         i_retval = ERROR_RETVAL_ROOT_FAIL;
+   i = 0;
+   while( NULL != ppc_fs_types[i] ) {
+      #ifdef DEBUG
+      printf( "Mounting %s as %s...\n", pc_root_dev, ppc_fs_types[i] );
+      #endif /* DEBUG */
+      i_retval = mount(
+         pc_root_dev, pc_root_mountpoint, ppc_fs_types[i], MS_RDONLY, ""
+      );
+
+      if( !i_retval ) {
+         /* This is kind of an odd duck, but here we skip to cleanup if we're *
+          * successful, rather than if we fail. If we fail, the failure will  *
+          * be set to the error value by default below.                       */
+
          goto mpr_cleanup;
       }
+
+      /* Keep trying until we find an FS that works. */
+      i++;
    }
+
+   /* We weren't successful, so we don't skip. */
+   #ifdef ERRORS
+   /* printf( "%s %s\n", pc_root_dev, pc_root_mountpoint ); */
+   perror( "Unable to mount root device" );
+   #endif /* ERRORS */
+   i_retval = ERROR_RETVAL_ROOT_FAIL;
 
 mpr_cleanup:
 
@@ -341,8 +382,12 @@ mpr_cleanup:
    free( pc_path_mapper );
    free( pc_path_mapper_s );
    free( pc_root_mountpoint );
-   free( pc_fs_types );
+   free( pc_fs_types_string );
+   #if 0
+   /* XXX: This is crashing if the the correct password is entered after >=1  *
+    *      failed attempt.                                                    */
    config_free_string_array( ppc_fs_types );
+   #endif
 
    return i_retval;
 }
@@ -354,5 +399,179 @@ int mount_probe_usr( void ) {
     */
    /* FIXME */
    return 0;
+}
+
+/* Portions of this code shamelessly stolen from busybox (but changed to      *
+ * fit our preferred coding style.                                            */
+
+static void mount_rmtree( char* pc_dir_path_in, dev_t i_root_dev_in ) {
+   DIR* ps_dir;
+   struct dirent* ps_entry;
+   struct stat s_stat;
+   char* pc_entry,
+      * pc_last_char,
+      * pc_entry_char_iter;
+
+   /* Don't descend into other filesystems. */
+   if( lstat( pc_dir_path_in, &s_stat ) || s_stat.st_dev != i_root_dev_in ) {
+      goto mr_cleanup;
+   }
+
+   /* Recursively delete the contents of directories. */
+   if( S_ISDIR( s_stat.st_mode ) ) {
+      ps_dir = opendir( pc_dir_path_in );
+      if( ps_dir ) {
+         while( (ps_entry = readdir( ps_dir )) ) {
+            pc_entry = ps_entry->d_name;
+
+            /* Skip special entries. */
+            if( (
+               pc_entry[0] == '.' &&
+               (pc_entry[1] == '\0' ||
+                  (pc_entry[1] == '.' && pc_entry[2] == '\0'))
+            ) ) {
+               continue;
+            }
+
+            /* pc_entry =
+               concat_path_file( pc_dir_path_in, pc_entry ); */
+            pc_entry_char_iter = pc_entry;
+            pc_last_char = last_char_is( pc_dir_path_in, '/' );
+            while( '/' == *pc_entry_char_iter ) {
+               pc_entry_char_iter++;
+            }
+            pc_entry = xasprintf(
+               "%s%s%s",
+               pc_dir_path_in,
+               (NULL == pc_last_char ? "/" : ""),
+               pc_entry
+            );
+
+            /* Recurse to delete contents. */
+            mount_rmtree( pc_entry, i_root_dev_in );
+            free( pc_entry );
+         }
+         closedir( ps_dir );
+
+         /* Directory should now be empty; zap it. */
+         rmdir( pc_dir_path_in );
+      }
+   } else {
+      /* It wasn't a directory; zap it. */
+      unlink( pc_dir_path_in );
+   }
+
+mr_cleanup:
+   
+   return;
+}
+
+/* Purpose: Switch from a tmpfs init root to a non-tmpfs full system root and *
+ *          exec the proper init from there.                                  */
+/* Return: Ideally, this will never return.                                   */
+int mount_switch_root( char* pc_new_root_in ) {
+   /* mount_rmtree( pc_new_root_in, NULL ); */
+
+   struct stat s_stat;
+   struct statfs s_statfs;
+   dev_t i_root_dev;
+   char* pc_command_switch_root_string,
+      ** ppc_command_switch_root;
+   int i_retval = 0;
+
+   pc_command_switch_root_string = config_descramble_string(
+      gac_command_switch_root,
+      gai_command_switch_root
+   );
+   ppc_command_switch_root = config_split_string_array(
+      pc_command_switch_root_string
+   );
+
+   /* Change to new root directory and verify it's a different FS. */
+   ERROR_PRINTF(
+      chdir( pc_new_root_in ),
+      i_retval,
+      ERROR_RETVAL_ROOT_FAIL,
+      msr_cleanup,
+      "Unable to chdir to new root.\n"
+   );
+   stat( "/", &s_stat );
+   i_root_dev = s_stat.st_dev;
+   stat( ".", &s_stat );
+   if( s_stat.st_dev == i_root_dev || getpid() != 1 ) {
+      #ifdef ERRORS
+      PRINTF_ERROR( "Invalid call to switch_root.\n" );
+      #endif /* ERRORS */
+      i_retval = ERROR_RETVAL_ROOT_FAIL;
+      goto msr_cleanup;
+   }
+
+   /* Additional sanity checks: we're about to rm -rf /, so be REALLY SURE we *
+    * mean it.                                                                */
+   if( stat( "/init", &s_stat ) != 0 || !S_ISREG( s_stat.st_mode ) ) {
+      #ifdef ERRORS
+      PRINTF_ERROR( "/init is not a regular file.\n" );
+      #endif /* ERRORS */
+      i_retval = ERROR_RETVAL_ROOT_FAIL;
+      goto msr_cleanup;
+   }
+
+   statfs( "/", &s_statfs );
+   if(
+      RAMFS_MAGIC != (unsigned)s_statfs.f_type &&
+      TMPFS_MAGIC != (unsigned)s_statfs.f_type
+   ) {
+      #ifdef ERRORS
+      PRINTF_ERROR( "Root filesystem is not ramfs/tmpfs.\n" );
+      #endif /* ERRORS */
+      i_retval = ERROR_RETVAL_ROOT_FAIL;
+      goto msr_cleanup;
+   }
+
+   /* Zap everything out of root dev. */
+   mount_rmtree( "/", i_root_dev );
+
+   /* Overmount / with newdir and chroot into it. */
+   if( mount( ".", "/", NULL, MS_MOVE, NULL ) ) {
+      #ifdef ERRORS
+      PRINTF_ERROR( "Error moving root.\n" );
+      #endif /* ERRORS */
+      i_retval = ERROR_RETVAL_ROOT_FAIL;
+      goto msr_cleanup;
+   }
+   ERROR_PRINTF(
+      chroot( "." ),
+      i_retval,
+      ERROR_RETVAL_ROOT_FAIL,
+      msr_cleanup,
+      "Unable to chroot to new root.\n"
+   );
+   ERROR_PRINTF(
+      chdir( "/" ),
+      i_retval,
+      ERROR_RETVAL_ROOT_FAIL,
+      msr_cleanup,
+      "Unable to refresh new root.\n"
+   );
+
+   #if 0
+   /* If a new console specified, redirect stdin/stdout/stderr to it. */
+   if( console ) {
+      close(0);
+      xopen(console, O_RDWR);
+      xdup2(0, 1);
+      xdup2(0, 2);
+   }
+   #endif
+
+   execv( ppc_command_switch_root[0], ppc_command_switch_root );
+ 
+msr_cleanup:
+
+   /* Meaningless cleanup routines. */
+   free( pc_command_switch_root_string );
+   config_free_string_array( ppc_command_switch_root );
+
+   return i_retval;
 }
 
