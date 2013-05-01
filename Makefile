@@ -23,6 +23,7 @@ endif
 # sbin/fbcondecor_helper s sbin/splash_util s
 
 image: init
+	if [ ! -d $(DESTDIR) ]; then mkdir -p $(DESTDIR); fi
 	$(eval TMP = $(shell mktemp -d))
 	rsync -avz --exclude ".keep" $(IMGDIR)/ $(TMP)/initrd/
 	# TODO: Make sure static files are static and dynamic files aren't.
