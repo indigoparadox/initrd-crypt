@@ -25,6 +25,7 @@ int network_start_ssh( void ) {
 
    /* Launch the SSH daemon. */
    /* /sbin/dropbear -s -j -k -p $CFG_SSH_PORT >/dev/null 2>&1 */
+   PRINTF_DEBUG( "Starting SSH server..." );
    #ifndef ERRORS
    console_hide();
    #endif /* ERRORS */
@@ -69,6 +70,7 @@ int network_stop_ssh( void ) {
       gai_sys_path_sshpid
    );
 
+   PRINTF_DEBUG( "Stopping SSH server..." );
    i_ssh_pid_file = open( pc_ssh_pid_path, O_RDONLY );
    if( 0 > i_ssh_pid_file ) {
       #ifdef ERRORS
@@ -78,6 +80,7 @@ int network_stop_ssh( void ) {
       goto nxs_cleanup;
    }
 
+   PRINTF_DEBUG( "Reading SSH server PID..." );
    if(
       0 > read( i_ssh_pid_file, ac_ssh_pid_line, SSH_PID_LINE_BUFFER_SIZE )
    ) {
@@ -86,13 +89,13 @@ int network_stop_ssh( void ) {
       #endif /* ERRORS */
       goto nxs_cleanup;
    }
-
    i_ssh_pid = atoi( ac_ssh_pid_line );
 
    #ifdef DEBUG
    printf( "SSH PID found: %d\n", i_ssh_pid );
    #endif /* DEBUG */
 
+   PRINTF_DEBUG( "Killing SSH server..." );
    ERROR_PERROR( 
       kill( i_ssh_pid, SIGTERM ),
       i_retval,
@@ -122,12 +125,11 @@ int setup_network( void ) {
    struct ifreq s_ifreq;
    struct sockaddr_in s_addr;
    char* pc_net_if = NULL,
-      * pc_net_ip = NULL,
-      * pc_vlan_if = NULL;
+      * pc_net_ip = NULL;
    #ifdef VLAN
+   char* pc_vlan_if = NULL;
    struct vlan_ioctl_args s_vlreq;
    #endif /* VLAN */
-
 
    /* Initialize. */
    memset( &s_ifreq, '\0', sizeof( struct ifreq ) );
@@ -140,6 +142,7 @@ int setup_network( void ) {
    #endif /* VLAN */
 
    /* Open a socket. */
+   PRINTF_DEBUG( "Opening socket..." );
    if( 0 > (i_socket = socket( AF_INET, SOCK_DGRAM, 0 )) ) {
       #ifdef ERRORS
       perror( "Error opening network socket" );
@@ -156,6 +159,7 @@ int setup_network( void ) {
    s_vlreq.u.VID = VLAN_VID;
    s_vlreq.cmd = ADD_VLAN_CMD;
 
+   PRINTF_DEBUG( "Starting VLANs..." );
    if( 0 > ioctl( i_socket, SIOCSIFVLAN, & s_vlreq) ) {
       #ifdef ERRORS
       perror( "Error executing SIOCSIFVLAN on socket" );
@@ -166,6 +170,7 @@ int setup_network( void ) {
 
    /* Bring the VLAN parent interface up. */
    strncpy( s_ifreq.ifr_name, pc_vlan_if, IFNAMSIZ - 1 );
+   PRINTF_DEBUG( "Getting parent interface flags..." );
    if( 0 > (i_retval = ioctl( i_socket, SIOCGIFFLAGS, (char*)&s_ifreq )) ) {
       #ifdef ERRORS
       perror( "Error executing ioctl SIOCGIFFLAGS on socket" );
@@ -174,6 +179,7 @@ int setup_network( void ) {
       goto sn_cleanup;
    }
    s_ifreq.ifr_flags |= IFF_UP | IFF_RUNNING;
+   PRINTF_DEBUG( "Bringing up parent interface..." );
    if( 0 > (i_retval = ioctl( i_socket, SIOCSIFFLAGS, (char*)&s_ifreq )) ) {
       #ifdef ERRORS
       perror( "Error executing ioctl SIOCSIFFLAGS on socket" );
@@ -188,6 +194,7 @@ int setup_network( void ) {
 
    /* Bring the interface up. */
    strncpy( s_ifreq.ifr_name, pc_net_if, IFNAMSIZ - 1 );
+   PRINTF_DEBUG( "Getting interface flags..." );
    if( 0 > (i_retval = ioctl( i_socket, SIOCGIFFLAGS, (char*)&s_ifreq )) ) {
       #ifdef ERRORS
       perror( "Error executing ioctl SIOCGIFFLAGS on socket" );
@@ -196,6 +203,7 @@ int setup_network( void ) {
       goto sn_cleanup;
    }
    s_ifreq.ifr_flags |= IFF_UP | IFF_RUNNING;
+   PRINTF_DEBUG( "Bringing up interface..." );
    if( 0 > (i_retval = ioctl( i_socket, SIOCSIFFLAGS, (char*)&s_ifreq )) ) {
       #ifdef ERRORS
       perror( "Error executing ioctl SIOCSIFFLAGS on socket" );
@@ -213,6 +221,7 @@ int setup_network( void ) {
    s_addr.sin_port = 0;
    memcpy( &s_ifreq.ifr_addr, &s_addr, sizeof( struct sockaddr ) );
 
+   PRINTF_DEBUG( "Setting IP address..." );
    if( 0 > (i_retval = ioctl( i_socket, SIOCSIFADDR, (char*)&s_ifreq )) ) {
       #ifdef ERRORS
       perror( "Error executing ioctl SIOCSIFADDR on socket" );
@@ -223,6 +232,7 @@ int setup_network( void ) {
 
    #ifdef DEBUG
    /* Verify and display address. */
+   PRINTF_DEBUG( "Getting IP address..." );
    if( 0 > (i_retval = ioctl( i_socket, SIOCGIFADDR, &s_ifreq )) ) {
       #ifdef ERRORS
       perror( "Error executing ioctl SIOCGIFADDR on socket" );
@@ -258,9 +268,9 @@ int stop_network( void ) {
    struct ifreq s_ifreq;
    struct sockaddr_in s_addr;
    char* pc_net_if = NULL,
-      * pc_net_ip = NULL,
-      * pc_vlan_if = NULL;
+      * pc_net_ip = NULL;
    #ifdef VLAN
+   char* pc_vlan_if = NULL;
    struct vlan_ioctl_args s_vlreq;
    #endif /* VLAN */
    
@@ -275,6 +285,7 @@ int stop_network( void ) {
    pc_net_ip = config_descramble_string( gac_net_ip, gai_net_ip );
 
    /* Open a socket. */
+   PRINTF_DEBUG( "Opening socket..." );
    if( 0 > (i_socket = socket( AF_INET, SOCK_DGRAM, 0 )) ) {
       #ifdef ERRORS
       perror( "Error opening network socket" );
@@ -285,6 +296,7 @@ int stop_network( void ) {
 
    /* Bring the interface down. */
    strncpy( s_ifreq.ifr_name, pc_net_if, IFNAMSIZ - 1 );
+   PRINTF_DEBUG( "Getting interface flags..." );
    if( 0 > (i_retval = ioctl( i_socket, SIOCGIFFLAGS, (char*)&s_ifreq )) ) {
       #ifdef ERRORS
       perror( "Error executing ioctl SIOCGIFFLAGS on socket" );
@@ -292,6 +304,7 @@ int stop_network( void ) {
       goto xn_cleanup;
    }
    s_ifreq.ifr_flags &= ~IFF_UP & ~IFF_RUNNING;
+   PRINTF_DEBUG( "Bringing down interface..." );
    if( 0 > (i_retval = ioctl( i_socket, SIOCSIFFLAGS, (char*)&s_ifreq )) ) {
       #ifdef ERRORS
       perror( "Error executing ioctl SIOCSIFFLAGS on socket" );
@@ -302,6 +315,7 @@ int stop_network( void ) {
    #ifdef VLAN
    /* Bring the parent interface down. */
    strncpy( s_ifreq.ifr_name, pc_vlan_if, IFNAMSIZ - 1 );
+   PRINTF_DEBUG( "Getting parent interface flags..." );
    if( 0 > (i_retval = ioctl( i_socket, SIOCGIFFLAGS, (char*)&s_ifreq )) ) {
       #ifdef ERRORS
       perror( "Error executing ioctl SIOCGIFFLAGS on socket" );
@@ -309,6 +323,7 @@ int stop_network( void ) {
       goto xn_cleanup;
    }
    s_ifreq.ifr_flags &= ~IFF_UP & ~IFF_RUNNING;
+   PRINTF_DEBUG( "Bringing down parent interface..." );
    if( 0 > (i_retval = ioctl( i_socket, SIOCSIFFLAGS, (char*)&s_ifreq )) ) {
       #ifdef ERRORS
       perror( "Error executing ioctl SIOCSIFFLAGS on socket" );
@@ -322,6 +337,7 @@ int stop_network( void ) {
    strncpy( s_vlreq.device1, pc_net_if, IFNAMSIZ - 1 );
    s_vlreq.cmd = DEL_VLAN_CMD;
 
+   PRINTF_DEBUG( "Deleting VLAN..." );
    if( 0 > ioctl( i_socket, SIOCSIFVLAN, & s_vlreq) ) {
       #ifdef ERRORS
       perror( "Error executing SIOCSIFVLAN on socket" );

@@ -18,6 +18,12 @@
 
 /* = Macros = */
 
+#ifdef DEBUG
+#define PRINTF_DEBUG( ... ) printf( __VA_ARGS__ );
+#else
+#define PRINTF_DEBUG( ... )
+#endif /* DEBUG */
+
 /* TODO: Get rid of this outdated macro. */
 #define PRINTF_ERROR( ... ) fprintf( stderr, __VA_ARGS__ );
 
