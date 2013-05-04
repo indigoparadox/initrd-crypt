@@ -178,6 +178,7 @@ int mount_mds( void ) {
    ps_md_array_iter = ps_md_arrays;
 
    /* Iterate through the host-specific data structure and create md arrays.  */
+   PRINTF_DEBUG( "Building mdadm command line...\n" );
    while( NULL != ps_md_array_iter ) {
       i_command_mdadm_strlen += strlen( "/dev/" ) + 1; /* +1 for the space. */
       i_command_mdadm_strlen += strlen( ps_md_array_iter->name );
@@ -223,6 +224,7 @@ int mount_mds( void ) {
       console_hide();
       #endif /* ERRORS */
 
+      PRINTF_DEBUG( "Running %s...", ac_command_mdadm );
       i_retval = system( ac_command_mdadm );
 
       /* Restore stdout/stderr. */
@@ -314,6 +316,7 @@ int mount_probe_root( void ) {
    ppc_fs_types = config_split_string_array( pc_fs_types_string );
 
    /* Try to find an appropriate root device. */
+   PRINTF_DEBUG( "Attempting to find root...\n" );
    p_dev_dir = opendir( pc_path_mapper );
    if( NULL != p_dev_dir ) {
       while( (p_dev_entry = readdir( p_dev_dir )) ) {
@@ -346,6 +349,7 @@ int mount_probe_root( void ) {
    }
 
    /* Attempt to mount the selected root device. */
+   PRINTF_DEBUG( "Attempting to mount root...\n" );
    i = 0;
    while( NULL != ppc_fs_types[i] ) {
       #ifdef DEBUG

@@ -132,11 +132,13 @@ int main( int argc, char* argv[] ) {
          "There was a problem mounting dynamic system filesystems.\n"
       );
 
+      PRINTF_DEBUG( "Setting up md devices...\n" );
       i_retval = mount_mds();
       if( i_retval ) {
          goto main_cleanup;
       }
       #ifdef NET
+      PRINTF_DEBUG( "Setting up network...\n" );
       i_retval = setup_network();
       if( i_retval ) {
          goto main_cleanup;
