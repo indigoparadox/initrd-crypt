@@ -2,6 +2,9 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+/* Needed for vasprintf(). */
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>

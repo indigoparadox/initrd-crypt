@@ -22,6 +22,7 @@
 #include "config.h"
 #include "error.h"
 #include "util.h"
+#include "console.h"
 
 /* = Function Prototypes = */
 

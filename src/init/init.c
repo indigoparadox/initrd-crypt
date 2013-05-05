@@ -114,8 +114,7 @@ void signal_handler( int i_signum_in ) {
 
 int main( int argc, char* argv[] ) {
    int i_retval = 0,
-      i_retval_local = 0,
-      i;
+      i_retval_local = 0;
 
    /* Protect ourselves against simple potential bypasses. */
    signal( SIGTERM, signal_handler );
