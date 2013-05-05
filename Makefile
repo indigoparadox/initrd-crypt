@@ -17,7 +17,7 @@ ifeq ($(shell uname -m),x86_64)
 else
 	# 32-bit X86 Binaries
 	IMGBINSTATIC := bin/busybox sbin/cryptsetup sbin/lvm.static sbin/mdadm
-	IMGBINDYNAMIC := sbin/dropbear lib/ld-linux.so.2 lib/libc.so.6 lib/libcrypt.so.1 lib/libnss_files-$(LDVER).so lib/libnss_files.so.2 lib/libutil.so.1 lib/libz.so.1
+	IMGBINDYNAMIC := usr/sbin/dropbear lib/ld-linux.so.2 lib/libc.so.6 lib/libcrypt.so.1 lib/libnss_files-$(LDVER).so lib/libnss_files.so.2 lib/libutil.so.1 lib/libz.so.1
 endif
 # TODO: Add optional support for fbsplash.
 # sbin/fbcondecor_helper s sbin/splash_util s
