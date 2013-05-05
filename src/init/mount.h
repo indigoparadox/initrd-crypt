@@ -12,6 +12,7 @@
 #include <linux/reboot.h>
 #include <sys/vfs.h>
 #include <sys/mount.h>
+#include <libcryptsetup.h>
 
 /* Make up for header deficiencies. */
 #ifndef RAMFS_MAGIC
@@ -33,7 +34,10 @@
 
 int umount_sys( void );
 int mount_sys( void );
+int mount_decrypt( char* );
 int mount_mds( void );
+int mount_probe_lvm( void );
+int mount_probe_boot( void );
 int mount_probe_root( void );
 int mount_probe_usr( void );
 int mount_switch_root( char* );

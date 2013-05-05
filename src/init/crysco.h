@@ -6,7 +6,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <libcryptsetup.h>
 #include <sys/reboot.h>
 #include <linux/reboot.h>
 
@@ -17,7 +16,6 @@
 
 /* = Function Prototypes = */
 
-int attempt_decrypt( char* );
 int prompt_decrypt( void );
 
 #endif /* CRYSCO_H */

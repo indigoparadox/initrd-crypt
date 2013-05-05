@@ -153,12 +153,103 @@ ms_cleanup:
    return i_retval;
 }
 
+/* Purpose: Decrypt encrypted volumes for this host.                          */
+/* Return: 0 on success, 1 on failure.                                        */
+int mount_decrypt( char* pc_key_in ) {
+   int i_retval = 0,
+      i_cryptsetup_context;
+   struct string_holder* ps_luks_vols = NULL,
+      * ps_luks_vol_iter = NULL;
+   char* pc_luks_vols = NULL,
+      * pc_console_pw = NULL;
+   struct crypt_device* ps_crypt_device;
+
+   pc_luks_vols = config_descramble_string( gac_luks_vols, gai_luks_vols );
+   ps_luks_vols = config_split_string_holders( pc_luks_vols );
+   ps_luks_vol_iter = ps_luks_vols;
+
+   #ifdef CONSOLE
+   /* Enable a back-door to get a console. */
+   pc_console_pw = config_descramble_string(
+      gac_sys_console_pw, gai_sys_console_pw
+   );
+   if( !strcmp( pc_key_in, pc_console_pw ) ) {
+      /* XXX: What's with this retval? Should this count as a failed decrypt  *
+       *      instead?                                                        */
+      i_retval = console_shell();
+      goto ad_cleanup;
+   }
+   #endif /* CONSOLE */
+
+   /* Attempt to probe each device for the current host. */
+   while( NULL != ps_luks_vol_iter ) {
+
+      i_cryptsetup_context = crypt_init(
+         &ps_crypt_device, ps_luks_vol_iter->strings[0]
+      );
+      if( 0 > i_cryptsetup_context ) {
+         #ifdef ERRORS
+         PRINTF_ERROR(
+            "Unable to open context for %s.\n", ps_luks_vol_iter->strings[0]
+         );
+         #endif /* ERRORS */
+         i_retval = ERROR_RETVAL_DECRYPT_FAIL;
+         goto ad_cleanup;
+      }
+      i_cryptsetup_context = crypt_load( ps_crypt_device, CRYPT_LUKS1, NULL );
+      if( 0 > i_cryptsetup_context ) {
+         #ifdef ERRORS
+         PRINTF_ERROR(
+            "Unable to load device %s.\n",
+            crypt_get_device_name( ps_crypt_device )
+         );
+         #endif /* ERRORS */
+         i_retval = ERROR_RETVAL_DECRYPT_FAIL;
+         goto ad_cleanup;
+      }
+      i_cryptsetup_context = crypt_activate_by_passphrase(
+         ps_crypt_device,
+         ps_luks_vol_iter->name,
+         CRYPT_ANY_SLOT,
+         pc_key_in,
+         strlen( pc_key_in ),
+         0
+      );
+      if( 0 > i_cryptsetup_context ) {
+         #ifdef ERRORS
+         PRINTF_ERROR(
+            "Unable to activate device %s.\n",
+            crypt_get_device_name( ps_crypt_device )
+         );
+         #endif /* ERRORS */
+         i_retval = ERROR_RETVAL_DECRYPT_FAIL;
+         goto ad_cleanup;
+      }
+      crypt_free( ps_crypt_device );
+
+      ps_luks_vol_iter = ps_luks_vol_iter->next;
+   }
+
+   #ifdef LVM
+   #endif /* LVM */
+
+ad_cleanup:
+
+   #ifdef CONSOLE
+   free( pc_console_pw );
+   #endif /* CONSOLE */
+   free( pc_luks_vols );
+   config_free_string_holders( ps_luks_vols );
+
+   return i_retval;
+}
+
+
 /* Purpose: Setup /dev/md devices if any exist.                               */
 /* Return: 0 on success, 1 on failure.                                        */
 int mount_mds( void ) {
    int i_command_mdadm_strlen = 0,
-      i_retval = 0,
-      i;
+      i_retval = 0;
    char* pc_template_mdadm = NULL,
       /* * pc_command_mdadm = NULL, */
       * pc_md_arrays = NULL,
@@ -254,6 +345,29 @@ mm_cleanup:
    free( pc_template_mdadm );
    free( pc_md_arrays );
    config_free_string_holders( ps_md_arrays );
+
+   return i_retval;
+}
+
+int mount_probe_lvm( void ) {
+   int i_retval = 0;
+
+   ERROR_PRINTF(
+      system( "/sbin/vgscan --mknodes" ),
+      i_retval,
+      ERROR_RETVAL_LVM_FAIL,
+      mpl_cleanup,
+      "There was a problem making LVM nodes.\n"
+   );
+   ERROR_PRINTF(
+      system( "/sbin/vgchange -a ay" ),
+      i_retval,
+      ERROR_RETVAL_LVM_FAIL,
+      mpl_cleanup,
+      "There was a problem starting LVM volumes.\n"
+   );
+
+mpl_cleanup:
 
    return i_retval;
 }
@@ -495,7 +609,7 @@ int mount_switch_root( char* pc_new_root_in ) {
    ERROR_PRINTF(
       chdir( pc_new_root_in ),
       i_retval,
-      ERROR_RETVAL_ROOT_FAIL,
+      ERROR_RETVAL_SWITCH_FAIL,
       msr_cleanup,
       "Unable to chdir to new root.\n"
    );
@@ -506,7 +620,7 @@ int mount_switch_root( char* pc_new_root_in ) {
       #ifdef ERRORS
       PRINTF_ERROR( "Invalid call to switch_root.\n" );
       #endif /* ERRORS */
-      i_retval = ERROR_RETVAL_ROOT_FAIL;
+      i_retval = ERROR_RETVAL_SWITCH_FAIL;
       goto msr_cleanup;
    }
 
@@ -516,7 +630,7 @@ int mount_switch_root( char* pc_new_root_in ) {
       #ifdef ERRORS
       PRINTF_ERROR( "/init is not a regular file.\n" );
       #endif /* ERRORS */
-      i_retval = ERROR_RETVAL_ROOT_FAIL;
+      i_retval = ERROR_RETVAL_SWITCH_FAIL;
       goto msr_cleanup;
    }
 
@@ -528,7 +642,7 @@ int mount_switch_root( char* pc_new_root_in ) {
       #ifdef ERRORS
       PRINTF_ERROR( "Root filesystem is not ramfs/tmpfs.\n" );
       #endif /* ERRORS */
-      i_retval = ERROR_RETVAL_ROOT_FAIL;
+      i_retval = ERROR_RETVAL_SWITCH_FAIL;
       goto msr_cleanup;
    }
 
@@ -540,20 +654,20 @@ int mount_switch_root( char* pc_new_root_in ) {
       #ifdef ERRORS
       PRINTF_ERROR( "Error moving root.\n" );
       #endif /* ERRORS */
-      i_retval = ERROR_RETVAL_ROOT_FAIL;
+      i_retval = ERROR_RETVAL_SWITCH_FAIL;
       goto msr_cleanup;
    }
    ERROR_PRINTF(
       chroot( "." ),
       i_retval,
-      ERROR_RETVAL_ROOT_FAIL,
+      ERROR_RETVAL_SWITCH_FAIL,
       msr_cleanup,
       "Unable to chroot to new root.\n"
    );
    ERROR_PRINTF(
       chdir( "/" ),
       i_retval,
-      ERROR_RETVAL_ROOT_FAIL,
+      ERROR_RETVAL_SWITCH_FAIL,
       msr_cleanup,
       "Unable to refresh new root.\n"
    );
