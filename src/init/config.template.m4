@@ -8,7 +8,7 @@ CONFIG_SCR(
    `sys_fs_mount',
    `/sys<none|sysfs>/proc<none|proc>/dev/pts<none|devpts>'
 )
-CONFIG_SCR(sys_fs_types,`ext3|ext2|xfs|reiserfs')
+CONFIG_SCR(sys_fs_types,`ext4|ext3|ext2|xfs|reiserfs')
 CONFIG_SCR(sys_mpoint_root,`/mnt/root')
 CONFIG_SCR(sys_path_mapper,`/dev/mapper')
 CONFIG_SCR(sys_path_mapper_s,`/dev/mapper/%s')
