@@ -52,14 +52,6 @@ void cleanup_system( int i_retval_in ) {
    #endif /* NET */
 
    ERROR_PRINTF(
-      mount_probe_usr(),
-      i_retval_in,
-      ERROR_RETVAL_SYSFS_FAIL,
-      boot_failed,
-      "Unable to detect or mount usr directory.\n"
-   );
-
-   ERROR_PRINTF(
       umount_sys(),
       i_retval_in,
       ERROR_RETVAL_SYSFS_FAIL,

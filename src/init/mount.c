@@ -510,15 +510,6 @@ mpr_cleanup:
    return i_retval;
 }
 
-/* Purpose: Mount /usr before boot for compatbility with newer systems.       */
-/* Return: 0 on success, 1 on failure.                                        */
-int mount_probe_usr( void ) {
-   /* TODO: Open fstab and see if a line exists for /usr. Mount if applicable.
-    */
-   /* FIXME */
-   return 0;
-}
-
 /* Portions of this code shamelessly stolen from busybox (but changed to      *
  * fit our preferred coding style.                                            */
 
