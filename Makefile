@@ -5,7 +5,6 @@ RELEASE=release
 IMGDIR = ./image
 DESTDIR := $(shell pwd)/build
 HOSTSDIR := $(shell pwd)/examples
-# TODO: Dynamically determine hostname?
 HOSTNAME := $(shell hostname)
 # TODO Dynamically determine LD version.
 #LDVER := $(shell ls /lib/ld-*.so | awk 'BEGIN {FS="-"} {print $2}' | cut -c -4)
@@ -21,6 +20,7 @@ else
 endif
 # TODO: Add optional support for fbsplash.
 # sbin/fbcondecor_helper s sbin/splash_util s
+TORBIN := lib/librt.so.1 lib/libdl.so.2 lib/libpthread.so.0
 
 image: init
 	@if [ ! -d $(DESTDIR) ]; then mkdir -p $(DESTDIR); fi
@@ -30,6 +30,26 @@ image: init
 	@$(foreach var,$(IMGBINSTATIC),cp -vL /$(var) $(TMP)/initrd/$(var);)
 	@$(foreach var,$(IMGBINDYNAMIC),cp -vL /$(var) $(TMP)/initrd/$(var);)
 	@cp src/init/init $(TMP)/initrd/init
+	@if [ -n '`grep "^#define TOR 1$$" src/init/config_extern.h`' ]; then \
+		$(foreach var,$(TORBIN),cp -vL /$(var) $(TMP)/initrd/$(var);) \
+	fi
+	# TODO: Use modular overridable lib paths.
+	@if [ -n '`grep "^#define TOR 1$$" src/init/config_extern.h`' ] && \
+		 [ ! -x 'tor/src/or/tor' ]; \
+	then \
+		cd tor; \
+		make clean; \
+		./configure \
+			--disable-gcc-hardening \
+			--enable-static-libevent \
+			--enable-static-openssl \
+			--enable-static-zlib \
+			--with-libevent-dir=/usr/lib64 \
+			--with-openssl-dir=/usr/lib64 \
+			--with-zlib-dir=/usr/lib64; \
+		make; \
+	fi
+	@cp -v tor/src/or/tor $(TMP)/initrd/bin/tor
 	@# Copy network files if the config calls for them.
 	@if [ -n '`grep "^#define NET 1$$" src/init/config_extern.h`' ]; then \
 		echo Copying network configuration...; \
@@ -52,7 +72,7 @@ init:
 		echo Missing host configuration for $(HOSTNAME). Aborting.; \
 		exit 1; \
 	fi
-	cd src/init && make clean && make RELEASE=$(RELEASE) \
+	@cd src/init && make clean && make RELEASE=$(RELEASE) \
 		HOSTSDIR=$(HOSTSDIR) HOSTNAME=$(HOSTNAME)
 
 .PHONY: init image
