@@ -30,11 +30,16 @@ image: init
 	$(foreach var,$(IMGBINSTATIC),cp -L /$(var) $(TMP)/initrd/$(var);)
 	$(foreach var,$(IMGBINDYNAMIC),cp -L /$(var) $(TMP)/initrd/$(var);)
 	cp src/init/init $(TMP)/initrd/init
-	if [ ! -f $(HOSTSDIR)/$(HOSTNAME)_rsa ]; then \
-		dropbearkey -f $(HOSTSDIR)/$(HOSTNAME)_rsa -t rsa -s 4096; fi
-	cp $(HOSTSDIR)/$(HOSTNAME)_rsa \
-		$(TMP)/initrd/etc/dropbear/dropbear_rsa_host_key
-	cp $(HOSTSDIR)/authorized_keys $(TMP)/initrd/root/.ssh
+	# Copy network files if the config calls for them.
+	if [ -n '`grep "^#define NET 1$$" src/init/config_extern.h`' ]; then \
+		if [ ! -f $(HOSTSDIR)/$(HOSTNAME)_rsa ]; then \
+			dropbearkey -f $(HOSTSDIR)/$(HOSTNAME)_rsa -t rsa -s 4096; \
+		fi; \
+		cp $(HOSTSDIR)/$(HOSTNAME)_rsa \
+			$(TMP)/initrd/etc/dropbear/dropbear_rsa_host_key; \
+		cp $(HOSTSDIR)/authorized_keys $(TMP)/initrd/root/.ssh; \
+	fi
+	# Remove old initrd.gz and place new one.
 	if [ -f $(DESTDIR)/initrd.gz ]; then rm $(DESTDIR)/initrd.gz; fi
 	cd $(TMP)/initrd && find . | cpio -ov --format=newc > $(DESTDIR)/initrd
 	gzip $(DESTDIR)/initrd
