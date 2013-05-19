@@ -6,7 +6,7 @@ IMGDIR = ./image
 DESTDIR := $(shell pwd)/build
 HOSTSDIR := $(shell pwd)/examples
 # TODO: Dynamically determine hostname?
-HOSTNAME := test
+HOSTNAME := $(shell hostname)
 # TODO Dynamically determine LD version.
 #LDVER := $(shell ls /lib/ld-*.so | awk 'BEGIN {FS="-"} {print $2}' | cut -c -4)
 LDVER := 2.15
@@ -23,29 +23,35 @@ endif
 # sbin/fbcondecor_helper s sbin/splash_util s
 
 image: init
-	if [ ! -d $(DESTDIR) ]; then mkdir -p $(DESTDIR); fi
-	$(eval TMP = $(shell mktemp -d))
-	rsync -avz --exclude ".keep" $(IMGDIR)/ $(TMP)/initrd/
+	@if [ ! -d $(DESTDIR) ]; then mkdir -p $(DESTDIR); fi
+	@$(eval TMP = $(shell mktemp -d))
+	@rsync -avz --exclude ".keep" $(IMGDIR)/ $(TMP)/initrd/
 	# TODO: Make sure static files are static and dynamic files aren't.
-	$(foreach var,$(IMGBINSTATIC),cp -L /$(var) $(TMP)/initrd/$(var);)
-	$(foreach var,$(IMGBINDYNAMIC),cp -L /$(var) $(TMP)/initrd/$(var);)
-	cp src/init/init $(TMP)/initrd/init
-	# Copy network files if the config calls for them.
-	if [ -n '`grep "^#define NET 1$$" src/init/config_extern.h`' ]; then \
+	@$(foreach var,$(IMGBINSTATIC),cp -vL /$(var) $(TMP)/initrd/$(var);)
+	@$(foreach var,$(IMGBINDYNAMIC),cp -vL /$(var) $(TMP)/initrd/$(var);)
+	@cp src/init/init $(TMP)/initrd/init
+	@# Copy network files if the config calls for them.
+	@if [ -n '`grep "^#define NET 1$$" src/init/config_extern.h`' ]; then \
+		echo Copying network configuration...; \
 		if [ ! -f $(HOSTSDIR)/$(HOSTNAME)_rsa ]; then \
 			dropbearkey -f $(HOSTSDIR)/$(HOSTNAME)_rsa -t rsa -s 4096; \
 		fi; \
-		cp $(HOSTSDIR)/$(HOSTNAME)_rsa \
+		cp -v $(HOSTSDIR)/$(HOSTNAME)_rsa \
 			$(TMP)/initrd/etc/dropbear/dropbear_rsa_host_key; \
-		cp $(HOSTSDIR)/authorized_keys $(TMP)/initrd/root/.ssh; \
+		cp -v $(HOSTSDIR)/authorized_keys $(TMP)/initrd/root/.ssh; \
 	fi
-	# Remove old initrd.gz and place new one.
-	if [ -f $(DESTDIR)/initrd.gz ]; then rm $(DESTDIR)/initrd.gz; fi
-	cd $(TMP)/initrd && find . | cpio -ov --format=newc > $(DESTDIR)/initrd
-	gzip $(DESTDIR)/initrd
-	rm -rf $(TMP)
+	@# Remove old initrd.gz and place new one.
+	@if [ -f $(DESTDIR)/initrd.gz ]; then rm $(DESTDIR)/initrd.gz; fi
+	@echo Building init image...
+	@cd $(TMP)/initrd && find . | cpio -ov --format=newc > $(DESTDIR)/initrd
+	@gzip $(DESTDIR)/initrd
+	@rm -rf $(TMP)
 
 init:
+	@if [ ! -f $(HOSTSDIR)/$(HOSTNAME).h.m4 ]; then \
+		echo Missing host configuration for $(HOSTNAME). Aborting.; \
+		exit 1; \
+	fi
 	cd src/init && make clean && make RELEASE=$(RELEASE) \
 		HOSTSDIR=$(HOSTSDIR) HOSTNAME=$(HOSTNAME)
 
