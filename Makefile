@@ -21,6 +21,7 @@ endif
 # TODO: Add optional support for fbsplash.
 # sbin/fbcondecor_helper s sbin/splash_util s
 TORBIN := lib/librt.so.1 lib/libdl.so.2 lib/libpthread.so.0 lib/libm.so.6
+DHCPBIN := lib/librt.so.1 lib/libpthread.so.0 sbin/dhcpcd
 
 image: init
 	@if [ ! -d $(DESTDIR) ]; then mkdir -p $(DESTDIR); fi
@@ -30,6 +31,9 @@ image: init
 	@$(foreach var,$(IMGBINSTATIC),cp -vL /$(var) $(TMP)/initrd/$(var);)
 	@$(foreach var,$(IMGBINDYNAMIC),cp -vL /$(var) $(TMP)/initrd/$(var);)
 	@cp src/init/init $(TMP)/initrd/init
+	@if [ -n '`grep "^#define DHCP 1$$" src/init/config_extern.h`' ]; then \
+		$(foreach var,$(DHCPBIN),cp -vL /$(var) $(TMP)/initrd/$(var);) \
+	fi
 	@if [ -n '`grep "^#define TOR 1$$" src/init/config_extern.h`' ]; then \
 		$(foreach var,$(TORBIN),cp -vL /$(var) $(TMP)/initrd/$(var);) \
 	fi
