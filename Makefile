@@ -61,11 +61,13 @@ image: init
 		echo `cat $(HOSTSDIR)/$(HOSTNAME)_tor_hostname`.onion > \
 			$(HOSTSDIR)/$(HOSTNAME)_tor_hostname; \
 	fi
+	@$(eval SSHPORT = $(shell grep "^#define SSH_PORT" src/init/config_extern.h | awk '{print $$3}' | tr -d '"'))
 	@if [ -n '`grep "^#define TOR 1$$" src/init/config_extern.h`' ]; then \
 		cp -v $(HOSTSDIR)/$(HOSTNAME)_tor_private \
 			$(TMP)/initrd/var/lib/tor/hidden_service/private_key; \
 		cp -v $(HOSTSDIR)/$(HOSTNAME)_tor_hostname \
 			$(TMP)/initrd/var/lib/tor/hidden_service/hostname; \
+		sed -i 's/XPORTX/$(SSHPORT)/g' $(TMP)/initrd/etc/torrc; \
 	fi
 	@# Copy network files if the config calls for them.
 	@if [ -n '`grep "^#define NET 1$$" src/init/config_extern.h`' ]; then \

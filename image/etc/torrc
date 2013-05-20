@@ -5,5 +5,4 @@ PIDFile /var/run/tor/tor.pid
 Log notice syslog
 DataDirectory /var/lib/tor/data
 HiddenServiceDir /var/lib/tor/hidden_service/
-# TODO: Generate this from the SSH port number from the config.
-HiddenServicePort 22 127.0.0.1:22
+HiddenServicePort XPORTX 127.0.0.1:XPORTX

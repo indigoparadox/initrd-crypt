@@ -26,7 +26,7 @@ dnl CONFIG_SCR(`net_vlan_if',`eth0')
 CONFIG_RAW(`NET',1)
 CONFIG_SCR(`net_if',`eth0')
 CONFIG_SCR(`net_ip',`192.168.76.9')
-CONFIG_SCR(`ssh_port',`1220')
+CONFIG_RAW(`SSH_PORT',`"1220"')
 CONFIG_RAW(`TOR',1)
 
 /* == Console == */
