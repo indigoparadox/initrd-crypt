@@ -14,6 +14,7 @@
 
 char* xasprintf( const char*, ... );
 char* last_char_is( const char *, int );
+void fork_exec( char** );
 
 #endif /* UTIL_H */
 

@@ -440,7 +440,23 @@ xn_cleanup:
 #ifdef TOR
 
 int setup_tor( void ) {
+   int i_retval = 0;
+   char* pc_command_tor_string,
+      ** ppc_command_tor;
 
+   pc_command_tor_string = config_descramble_string(
+      gac_command_tor, gai_command_tor
+   );
+   ppc_command_tor = config_split_string_array( pc_command_tor_string );
+
+   fork_exec( ppc_command_tor );
+
+st_cleanup:
+
+   config_free_string_array( ppc_command_tor );
+   free( pc_command_tor_string );
+
+   return i_retval;
 }
 
 int stop_tor( void ) {

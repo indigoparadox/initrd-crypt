@@ -145,6 +145,14 @@ int main( int argc, char* argv[] ) {
       if( i_retval ) {
          goto main_cleanup;
       }
+
+      ERROR_PRINTF(
+         setup_tor(),
+         i_retval,
+         ERROR_RETVAL_TOR_FAIL,
+         main_cleanup,
+         "Unable to start tor daemon.\n"
+      );
       #endif /* NET */
 
       /* TODO: Load any directed kernel modules. */

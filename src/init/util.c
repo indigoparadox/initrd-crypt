@@ -35,3 +35,18 @@ char* last_char_is( const char *s, int c ) {
    return NULL;
 }
 
+void fork_exec( char** ppc_command_in ) {
+   int i_fork_pid;
+
+   i_fork_pid = fork();
+   if( 0 == i_fork_pid ) {
+      /* This is the child process. */
+
+      execv( ppc_command_in[0], ppc_command_in );
+
+   } else if( 0 < i_fork_pid ) {
+      /* This is the parent process. */
+      return;
+   }
+}
+
