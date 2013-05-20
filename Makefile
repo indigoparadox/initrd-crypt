@@ -4,7 +4,7 @@
 RELEASE=release
 IMGDIR = ./image
 DESTDIR := $(shell pwd)/build
-HOSTSDIR := $(shell pwd)/examples
+HOSTSDIR := $(shell pwd)/config
 HOSTNAME := $(shell hostname)
 # TODO Dynamically determine LD version.
 #LDVER := $(shell ls /lib/ld-*.so | awk 'BEGIN {FS="-"} {print $2}' | cut -c -4)
