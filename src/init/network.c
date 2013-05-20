@@ -107,8 +107,46 @@ int network_signal_dyndns( void ) {
    return i_retval;
 }
 
-int setup_network_interface( char* pc_if_name_in ) {
+/* Parameters:                                                                *
+ *    i_up_in - 0 to bring the interface down, anything else to bring it up.  */
+int toggle_network_interface( char* pc_if_name_in, int i_up_in ) {
+   int i_retval = 0,
+      i_socket;
+   struct ifreq s_ifreq;
 
+   /* Initialize. */
+   memset( &s_ifreq, '\0', sizeof( struct ifreq ) );
+   NETWORK_OPEN_SOCKET( i_socket, sni_cleanup );
+
+   strncpy( s_ifreq.ifr_name, pc_if_name_in, IFNAMSIZ - 1 );
+   PRINTF_DEBUG( "Getting %s flags...\n", pc_if_name_in );
+   if( 0 > (i_retval = ioctl( i_socket, SIOCGIFFLAGS, (char*)&s_ifreq )) ) {
+      #ifdef ERRORS
+      perror( "Error executing ioctl SIOCGIFFLAGS on socket" );
+      #endif /* ERRORS */
+      i_retval |= ERROR_RETVAL_NET_FAIL;
+      goto sni_cleanup;
+   }
+   if( !i_up_in ) {
+      s_ifreq.ifr_flags &= ~IFF_UP & ~IFF_RUNNING;
+      PRINTF_DEBUG( "Bringing down %s...\n", pc_if_name_in );
+   } else {
+      s_ifreq.ifr_flags |= IFF_UP | IFF_RUNNING;
+      PRINTF_DEBUG( "Bringing up %s...\n", pc_if_name_in );
+   }
+   if( 0 > (i_retval = ioctl( i_socket, SIOCSIFFLAGS, (char*)&s_ifreq )) ) {
+      #ifdef ERRORS
+      perror( "Error executing ioctl SIOCSIFFLAGS on socket" );
+      #endif /* ERRORS */
+      i_retval |= ERROR_RETVAL_NET_FAIL;
+      goto sni_cleanup;
+   }
+
+sni_cleanup:
+
+   close( i_socket );
+
+   return i_retval;
 }
 
 int setup_network( void ) {
@@ -117,12 +155,12 @@ int setup_network( void ) {
    struct ifreq s_ifreq;
    struct sockaddr_in s_addr;
    struct rtentry s_route;
+   char* pc_net_if = NULL;
    #ifdef DHCP
    char* pc_command_dhcp_string = NULL,
       ** ppc_command_dhcp = NULL;
    #else
-   char* pc_net_if = NULL,
-      * pc_net_ip = NULL;
+   char* pc_net_ip = NULL;
    #endif /* DHCP */
    #ifdef VLAN
    char* pc_vlan_if = NULL;
@@ -175,71 +213,17 @@ int setup_network( void ) {
    }
 
    /* Bring the VLAN parent interface up. */
-   strncpy( s_ifreq.ifr_name, pc_vlan_if, IFNAMSIZ - 1 );
-   PRINTF_DEBUG( "Getting parent interface flags...\n" );
-   if( 0 > (i_retval = ioctl( i_socket, SIOCGIFFLAGS, (char*)&s_ifreq )) ) {
-      #ifdef ERRORS
-      perror( "Error executing ioctl SIOCGIFFLAGS on socket" );
-      #endif /* ERRORS */
-      i_retval |= ERROR_RETVAL_NET_FAIL;
-      goto sn_cleanup;
-   }
-   s_ifreq.ifr_flags |= IFF_UP | IFF_RUNNING;
-   PRINTF_DEBUG( "Bringing up parent interface...\n" );
-   if( 0 > (i_retval = ioctl( i_socket, SIOCSIFFLAGS, (char*)&s_ifreq )) ) {
-      #ifdef ERRORS
-      perror( "Error executing ioctl SIOCSIFFLAGS on socket" );
-      #endif /* ERRORS */
-      i_retval |= ERROR_RETVAL_NET_FAIL;
-      goto sn_cleanup;
-   }
-   
+   toggle_network_interface( pc_vlan_if, 1 );
+
    /* Clean up after the parent interface. */
    memset( &s_ifreq, '\0', sizeof( struct ifreq ) );
    #endif /* VLAN */
 
-   /* TODO: Create utility functions to bring interfaces up or whatever. */
-
    /* Bring localhost interface up. */
-   strncpy( s_ifreq.ifr_name, "lo", IFNAMSIZ - 1 );
-   PRINTF_DEBUG( "Getting localhost interface flags...\n" );
-   if( 0 > (i_retval = ioctl( i_socket, SIOCGIFFLAGS, (char*)&s_ifreq )) ) {
-      #ifdef ERRORS
-      perror( "Error executing ioctl SIOCGIFFLAGS on socket" );
-      #endif /* ERRORS */
-      i_retval |= ERROR_RETVAL_NET_FAIL;
-      goto sn_cleanup;
-   }
-   s_ifreq.ifr_flags |= IFF_UP | IFF_RUNNING;
-   PRINTF_DEBUG( "Bringing up interface...\n" );
-   if( 0 > (i_retval = ioctl( i_socket, SIOCSIFFLAGS, (char*)&s_ifreq )) ) {
-      #ifdef ERRORS
-      perror( "Error executing ioctl SIOCSIFFLAGS on socket" );
-      #endif /* ERRORS */
-      i_retval |= ERROR_RETVAL_NET_FAIL;
-      goto sn_cleanup;
-   }
-   memset( &s_ifreq, '\0', sizeof( struct ifreq ) );
+   toggle_network_interface( "lo", 1 );
 
    /* Bring the interface up. */
-   strncpy( s_ifreq.ifr_name, pc_net_if, IFNAMSIZ - 1 );
-   PRINTF_DEBUG( "Getting interface flags...\n" );
-   if( 0 > (i_retval = ioctl( i_socket, SIOCGIFFLAGS, (char*)&s_ifreq )) ) {
-      #ifdef ERRORS
-      perror( "Error executing ioctl SIOCGIFFLAGS on socket" );
-      #endif /* ERRORS */
-      i_retval |= ERROR_RETVAL_NET_FAIL;
-      goto sn_cleanup;
-   }
-   s_ifreq.ifr_flags |= IFF_UP | IFF_RUNNING;
-   PRINTF_DEBUG( "Bringing up interface...\n" );
-   if( 0 > (i_retval = ioctl( i_socket, SIOCSIFFLAGS, (char*)&s_ifreq )) ) {
-      #ifdef ERRORS
-      perror( "Error executing ioctl SIOCSIFFLAGS on socket" );
-      #endif /* ERRORS */
-      i_retval |= ERROR_RETVAL_NET_FAIL;
-      goto sn_cleanup;
-   }
+   toggle_network_interface( pc_net_if, 1 );
 
    #ifdef DHCP
    #if 0
@@ -356,8 +340,13 @@ int stop_network( void ) {
    struct ifreq s_ifreq;
    struct sockaddr_in s_addr;
    struct rtentry s_route;
-   #ifndef DHCP
-   char* pc_net_if = NULL;
+   char* pc_net_if = NULL,
+      * pc_dhcp_pid_path = NULL;
+
+   #ifdef DHCP
+   pc_dhcp_pid_path = config_descramble_string(
+      gac_sys_path_dhcppid, gai_sys_path_dhcppid
+   );
    #endif /* DHCP */
 
    /* Open a socket. */
@@ -394,70 +383,24 @@ int stop_network( void ) {
    #endif
 
    /* Bring loopback interface down. */
-   strncpy( s_ifreq.ifr_name, "lo", IFNAMSIZ - 1 );
-   PRINTF_DEBUG( "Getting loopback interface flags...\n" );
-   if( 0 > (i_retval = ioctl( i_socket, SIOCGIFFLAGS, (char*)&s_ifreq )) ) {
-      #ifdef ERRORS
-      perror( "Error executing ioctl SIOCGIFFLAGS on socket" );
-      #endif /* ERRORS */
-      goto xn_cleanup;
-   }
-   s_ifreq.ifr_flags &= ~IFF_UP & ~IFF_RUNNING;
-   PRINTF_DEBUG( "Bringing down loopback interface...\n" );
-   if( 0 > (i_retval = ioctl( i_socket, SIOCSIFFLAGS, (char*)&s_ifreq )) ) {
-      #ifdef ERRORS
-      perror( "Error executing ioctl SIOCSIFFLAGS on socket" );
-      #endif /* ERRORS */
-      goto xn_cleanup;
-   }
-   memset( &s_ifreq, '\0', sizeof( struct ifreq ) );
+   toggle_network_interface( "lo", 0 );
 
    #ifdef DHCP
    ERROR_PRINTF(
-      kill_pid_file( "/var/run/udhcpc.pid" );
+      kill_pid_file( pc_dhcp_pid_path ),
       i_retval,
       ERROR_RETVAL_TOR_FAIL,
-      xt_cleanup,
+      xn_cleanup,
       "Unable to stop udhcpc.\n"
    );
    #else
    /* Bring the interface down. */
-   strncpy( s_ifreq.ifr_name, pc_net_if, IFNAMSIZ - 1 );
-   PRINTF_DEBUG( "Getting interface flags...\n" );
-   if( 0 > (i_retval = ioctl( i_socket, SIOCGIFFLAGS, (char*)&s_ifreq )) ) {
-      #ifdef ERRORS
-      perror( "Error executing ioctl SIOCGIFFLAGS on socket" );
-      #endif /* ERRORS */
-      goto xn_cleanup;
-   }
-   s_ifreq.ifr_flags &= ~IFF_UP & ~IFF_RUNNING;
-   PRINTF_DEBUG( "Bringing down interface...\n" );
-   if( 0 > (i_retval = ioctl( i_socket, SIOCSIFFLAGS, (char*)&s_ifreq )) ) {
-      #ifdef ERRORS
-      perror( "Error executing ioctl SIOCSIFFLAGS on socket" );
-      #endif /* ERRORS */
-      goto xn_cleanup;
-   }
+   toggle_network_interface( pc_net_if, 0 );
    #endif /* DHCP */
 
    #ifdef VLAN
    /* Bring the parent interface down. */
-   strncpy( s_ifreq.ifr_name, pc_vlan_if, IFNAMSIZ - 1 );
-   PRINTF_DEBUG( "Getting parent interface flags...\n" );
-   if( 0 > (i_retval = ioctl( i_socket, SIOCGIFFLAGS, (char*)&s_ifreq )) ) {
-      #ifdef ERRORS
-      perror( "Error executing ioctl SIOCGIFFLAGS on socket" );
-      #endif /* ERRORS */
-      goto xn_cleanup;
-   }
-   s_ifreq.ifr_flags &= ~IFF_UP & ~IFF_RUNNING;
-   PRINTF_DEBUG( "Bringing down parent interface...\n" );
-   if( 0 > (i_retval = ioctl( i_socket, SIOCSIFFLAGS, (char*)&s_ifreq )) ) {
-      #ifdef ERRORS
-      perror( "Error executing ioctl SIOCSIFFLAGS on socket" );
-      #endif /* ERRORS */
-      goto xn_cleanup;
-   }
+   toggle_network_interface( pc_vlan_if, 0 );
 
    /* Delete the VLAN. */
    memset( &s_vlreq, '\0', sizeof( struct vlan_ioctl_args ) );
@@ -478,12 +421,11 @@ int stop_network( void ) {
 xn_cleanup:
 
    close( i_socket );
-
-   free( pc_net_if );
    
    #ifdef DHCP
-   close( i_dhcp_pid_file );
    free( pc_dhcp_pid_path );
+   #else
+   free( pc_net_if );
    #endif /* DHCP */
 
    #ifdef VLAN

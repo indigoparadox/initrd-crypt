@@ -24,6 +24,23 @@
 #include "util.h"
 #include "console.h"
 
+/* = Macros = */
+
+#ifdef ERRORS
+#define NETWORK_OPEN_SOCKET( socketd, golabel ) \
+   if( 0 > (socketd = socket( AF_INET, SOCK_DGRAM, 0 )) ) { \
+      perror( "Error opening network socket" ); \
+      i_retval |= ERROR_RETVAL_NET_FAIL; \
+      goto golabel; \
+   }
+#else
+#define NETWORK_OPEN_SOCKET( socketd, golabel ) \
+   if( 0 > (socketd = socket( AF_INET, SOCK_DGRAM, 0 )) ) { \
+      i_retval |= ERROR_RETVAL_NET_FAIL; \
+      goto golabel; \
+   }
+#endif /* ERRORS */
+
 /* = Function Prototypes = */
 
 #ifdef NET

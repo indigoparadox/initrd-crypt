@@ -35,8 +35,10 @@ char* last_char_is( const char *s, int c ) {
    return NULL;
 }
 
-void fork_exec( char** ppc_command_in ) {
-   int i_fork_pid;
+int fork_exec( char** ppc_command_in ) {
+   /* TODO: Make the retval meaningful. */
+   int i_retval = 0,
+      i_fork_pid;
 
    i_fork_pid = fork();
    if( 0 == i_fork_pid ) {
@@ -48,6 +50,8 @@ void fork_exec( char** ppc_command_in ) {
       /* This is the parent process. */
       return;
    }
+
+   return i_retval;
 }
 
 int kill_pid_file( char* pc_pid_file_path_in ) {

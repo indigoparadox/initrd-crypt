@@ -22,6 +22,6 @@ CONFIG_SCR(command_switch_root,`/sbin/init')
 dnl CONFIG_SCR(command_ssh,`/sbin/dropbear|-s|-j|-k|-p|22')
 CONFIG_SCR(command_ssh,`/sbin/dropbear -s -j -k -P /var/run/dropbear.pid -p %s')
 CONFIG_SCR(command_tor,`/bin/tor|--quiet|-f|/etc/torrc')
-CONFIG_SCR(command_dhcp,`/bin/udhcpc|-t|5|-q|-p|/var/run/udhcpc.pid|-s|/bin/simple.script')
+CONFIG_SCR(command_dhcp,`/bin/udhcpc|-t|5|-p|/var/run/udhcpc.pid|-s|/bin/simple.script')
 
 /* = Host-Specific Configuration = */
