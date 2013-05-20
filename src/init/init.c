@@ -107,6 +107,8 @@ void signal_handler( int i_signum_in ) {
 int main( int argc, char* argv[] ) {
    int i_retval = 0,
       i_retval_local = 0;
+   struct stat s_stat;
+   dev_t i_root_dev;
 
    /* Protect ourselves against simple potential bypasses. */
    signal( SIGTERM, signal_handler );
@@ -114,6 +116,10 @@ int main( int argc, char* argv[] ) {
    signal( SIGQUIT, signal_handler );
 
    if( 1 == getpid() ) {
+      stat( "/", &s_stat );
+      i_root_dev = s_stat.st_dev;
+      mount_chown_root( "/", i_root_dev );
+
       /* We're being called as init, so set the system up. */
       ERROR_PRINTF(
          mount_sys(),

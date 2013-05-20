@@ -39,6 +39,7 @@ int mount_mds( void );
 int mount_probe_lvm( void );
 int mount_probe_boot( void );
 int mount_probe_root( void );
+void mount_chown_root( char*, dev_t );
 int mount_switch_root( char* );
 
 #endif /* MOUNT_H */

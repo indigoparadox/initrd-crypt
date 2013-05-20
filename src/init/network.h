@@ -13,6 +13,7 @@
 #include <sys/socket.h>
 #include <net/if.h>
 #include <arpa/inet.h>
+#include <net/route.h>
 #ifdef VLAN
 #include <linux/if_vlan.h>
 #include <linux/sockios.h>

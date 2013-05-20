@@ -112,6 +112,7 @@ int setup_network( void ) {
       i_retval = 0;
    struct ifreq s_ifreq;
    struct sockaddr_in s_addr;
+   struct rtentry s_route;
    char* pc_net_if = NULL,
       * pc_net_ip = NULL;
    #ifdef VLAN
@@ -125,6 +126,7 @@ int setup_network( void ) {
 
    /* Initialize. */
    memset( &s_ifreq, '\0', sizeof( struct ifreq ) );
+   memset( &s_route, '\0', sizeof( struct rtentry ) );
    memset( &s_addr, '\0', sizeof( struct sockaddr_in ) );
    pc_net_if = config_descramble_string( gac_net_if, gai_net_if );
    pc_net_ip = config_descramble_string( gac_net_ip, gai_net_ip );
@@ -217,6 +219,26 @@ int setup_network( void ) {
    if( 0 > (i_retval = ioctl( i_socket, SIOCSIFADDR, (char*)&s_ifreq )) ) {
       #ifdef ERRORS
       perror( "Error executing ioctl SIOCSIFADDR on socket" );
+      #endif /* ERRORS */
+      i_retval |= ERROR_RETVAL_NET_FAIL;
+      goto sn_cleanup;
+   }
+
+   /* Set the default route. */
+   s_addr.sin_addr.s_addr = inet_addr( NET_GATEWAY );
+   s_addr.sin_family = AF_INET;
+   s_addr.sin_port = 0;
+   ((struct sockaddr_in*)&s_route.rt_dst)->sin_addr.s_addr = 0;
+   ((struct sockaddr_in*)&s_route.rt_dst)->sin_family = AF_INET;
+   ((struct sockaddr_in*)&s_route.rt_dst)->sin_port = 0;
+   ((struct sockaddr_in*)&s_route.rt_genmask)->sin_addr.s_addr = 0;
+   ((struct sockaddr_in*)&s_route.rt_genmask)->sin_family = AF_INET;
+   ((struct sockaddr_in*)&s_route.rt_genmask)->sin_port = 0;
+   memcpy( (void*)&s_route.rt_gateway, &s_addr, sizeof( s_addr ) );
+   s_route.rt_flags = RTF_UP | RTF_GATEWAY;
+   if( 0 > (i_retval = ioctl( i_socket, SIOCADDRT, &s_route )) ) {
+      #ifdef ERRORS
+      perror( "Error executing ioctl SIOCADDRT on socket" );
       #endif /* ERRORS */
       i_retval |= ERROR_RETVAL_NET_FAIL;
       goto sn_cleanup;
