@@ -7,8 +7,8 @@
 
 int network_start_ssh( void ) {
    int i_retval = 0;
-   char* pc_command_ssh_string,
-      * pc_command_ssh;
+   char* pc_command_ssh_string = NULL,
+      * pc_command_ssh = NULL;
 
    pc_command_ssh_string = config_descramble_string(
       gac_command_ssh, gai_command_ssh
@@ -107,16 +107,22 @@ int network_signal_dyndns( void ) {
    return i_retval;
 }
 
+int setup_network_interface( char* pc_if_name_in ) {
+
+}
+
 int setup_network( void ) {
    int i_socket,
       i_retval = 0;
    struct ifreq s_ifreq;
    struct sockaddr_in s_addr;
    struct rtentry s_route;
+   #ifdef DHCP
+   char* pc_command_dhcp_string = NULL,
+      ** ppc_command_dhcp = NULL;
+   #else
    char* pc_net_if = NULL,
       * pc_net_ip = NULL;
-   #ifdef DHCP
-   char* pc_command_dhcp = NULL;
    #endif /* DHCP */
    #ifdef VLAN
    char* pc_vlan_if = NULL;
@@ -129,9 +135,10 @@ int setup_network( void ) {
    memset( &s_addr, '\0', sizeof( struct sockaddr_in ) );
    pc_net_if = config_descramble_string( gac_net_if, gai_net_if );
    #ifdef DHCP
-   pc_command_dhcp = config_descramble_string(
+   pc_command_dhcp_string = config_descramble_string(
       gac_command_dhcp, gai_command_dhcp
    );
+   ppc_command_dhcp = config_split_string_array( pc_command_dhcp_string );
    #else
    pc_net_ip = config_descramble_string( gac_net_ip, gai_net_ip );
    #endif /* DHCP */
@@ -235,6 +242,7 @@ int setup_network( void ) {
    }
 
    #ifdef DHCP
+   #if 0
    close( i_socket );
    ERROR_PRINTF(
       system( pc_command_dhcp ),
@@ -242,6 +250,14 @@ int setup_network( void ) {
       ERROR_RETVAL_NET_FAIL,
       sn_cleanup,
       "Unable to start DHCP client.\n"
+   );
+   #endif
+   ERROR_PRINTF(
+      fork_exec( ppc_command_dhcp ),
+      i_retval,
+      ERROR_RETVAL_NET_FAIL,
+      sn_cleanup,
+      "Unable to start udhcpc.\n"
    );
 
    /* Reopen a socket. */
@@ -315,12 +331,15 @@ int setup_network( void ) {
 
 sn_cleanup:
 
-   #ifndef DHCP
+   //#ifndef DHCP
    close( i_socket );
-   #endif /* DHCP */
+   //#endif /* DHCP */
 
    free( pc_net_if );
-   #ifndef DHCP
+   #ifdef DHCP
+   free( pc_command_dhcp_string );
+   config_free_string_array( ppc_command_dhcp );
+   #else
    free( pc_net_ip );
    #endif /* DHCP */
 
@@ -337,14 +356,19 @@ int stop_network( void ) {
    struct ifreq s_ifreq;
    struct sockaddr_in s_addr;
    struct rtentry s_route;
-   char* pc_net_if = NULL,
-      * pc_net_ip = NULL;
-   #ifdef DHCP
-   int i_dhcp_pid,
-      i_dhcp_pid_file;
-   char* pc_dhcp_pid_path,
-      ac_dhcp_pid_line[SSH_PID_LINE_BUFFER_SIZE];
+   #ifndef DHCP
+   char* pc_net_if = NULL;
    #endif /* DHCP */
+
+   /* Open a socket. */
+   PRINTF_DEBUG( "Opening socket...\n" );
+   if( 0 > (i_socket = socket( AF_INET, SOCK_DGRAM, 0 )) ) {
+      #ifdef ERRORS
+      perror( "Error opening network socket" );
+      #endif /* ERRORS */
+      i_retval |= ERROR_RETVAL_NET_FAIL;
+      goto xn_cleanup;
+   }
 
    /* Unset the default route. */
    #if 0
@@ -389,36 +413,12 @@ int stop_network( void ) {
    memset( &s_ifreq, '\0', sizeof( struct ifreq ) );
 
    #ifdef DHCP
-   PRINTF_DEBUG( "Stopping DHCP client...\n" );
-   i_dhcp_pid_file = open( pc_dhcp_pid_path, O_RDONLY );
-   if( 0 > i_dhcp_pid_file ) {
-      #ifdef ERRORS
-      perror( "Unable to open DHCP client PID file" );
-      #endif /* ERRORS */
-      i_retval |= ERROR_RETVAL_NET_FAIL;
-      goto xn_cleanup;
-   }
-
-   PRINTF_DEBUG( "Reading DHCP client PID...\n" );
-   if(
-      0 > read( i_dhcp_pid_file, ac_dhcp_pid_line, SSH_PID_LINE_BUFFER_SIZE )
-   ) {
-      #ifdef ERRORS
-      perror( "Unable to read from DHCP client PID file" );
-      #endif /* ERRORS */
-      goto xn_cleanup;
-   }
-   i_dhcp_pid = atoi( ac_dhcp_pid_line );
-
-   PRINTF_DEBUG( "DHCP client PID found: %d\n", i_dhcp_pid );
-
-   PRINTF_DEBUG( "Killing DHCP client...\n" );
-   ERROR_PERROR( 
-      kill( i_dhcp_pid, SIGTERM ),
+   ERROR_PRINTF(
+      kill_pid_file( "/var/run/udhcpc.pid" );
       i_retval,
-      ERROR_RETVAL_NET_FAIL,
-      xn_cleanup,
-      "Unable to stop DHCP client\n"
+      ERROR_RETVAL_TOR_FAIL,
+      xt_cleanup,
+      "Unable to stop udhcpc.\n"
    );
    #else
    /* Bring the interface down. */
@@ -516,7 +516,26 @@ st_cleanup:
 }
 
 int stop_tor( void ) {
+   int i_retval = 0;
+   char* pc_tor_pid_path = NULL;
 
+   pc_tor_pid_path = config_descramble_string(
+      gac_sys_path_torpid, gai_sys_path_torpid
+   );
+
+   ERROR_PRINTF(
+      kill_pid_file( "/var/run/tor.pid" ),
+      i_retval,
+      ERROR_RETVAL_TOR_FAIL,
+      xt_cleanup,
+      "Unable to stop tor.\n"
+   );
+
+xt_cleanup:
+
+   free( pc_tor_pid_path );
+
+   return i_retval;
 }
 
 #endif /* TOR */

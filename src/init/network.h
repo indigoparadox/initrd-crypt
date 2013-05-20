@@ -7,7 +7,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <signal.h>
 #ifdef NET
 #include <sys/ioctl.h>
 #include <sys/socket.h>

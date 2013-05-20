@@ -50,3 +50,48 @@ void fork_exec( char** ppc_command_in ) {
    }
 }
 
+int kill_pid_file( char* pc_pid_file_path_in ) {
+   
+   #define PID_LINE_BUFFER_SIZE 50
+
+   int i_retval = 0,
+      i_pid,
+      i_pid_file;
+   char ac_pid_line[PID_LINE_BUFFER_SIZE];
+
+   PRINTF_DEBUG( "Stopping %s...\n", pc_pid_file_path_in );
+   i_pid_file = open( pc_pid_file_path_in, O_RDONLY );
+   if( 0 > i_pid_file ) {
+      #ifdef ERRORS
+      perror( "Unable to open pid file" );
+      #endif /* ERRORS */
+      i_retval |= ERROR_RETVAL_EXEC_FAIL;
+      goto kpf_cleanup;
+   }
+
+   PRINTF_DEBUG( "Reading %s...\n", pc_pid_file_path_in );
+   if(
+      0 > read( i_pid_file, ac_pid_line, PID_LINE_BUFFER_SIZE )
+   ) {
+      #ifdef ERRORS
+      perror( "Unable to read from pid file" );
+      #endif /* ERRORS */
+      goto kpf_cleanup;
+   }
+   i_pid = atoi( ac_pid_line );
+
+   PRINTF_DEBUG( "Found pid: %d, killing...\n", i_pid );
+
+   ERROR_PERROR( 
+      kill( i_pid, SIGTERM ),
+      i_retval,
+      ERROR_RETVAL_EXEC_FAIL,
+      kpf_cleanup,
+      "Unable to stop process\n"
+   );
+
+kpf_cleanup:
+
+   return i_retval;
+}
+
