@@ -225,12 +225,15 @@ int setup_network( void ) {
    toggle_network_interface( pc_net_if, 1 );
 
    #ifdef DHCP
+   ppc_command_dhcp = realloc( ppc_command_dhcp, 3 );
+   ppc_command_dhcp[1] = xasprintf( "%s", pc_net_if );
+   ppc_command_dhcp[2] = NULL;
    ERROR_PRINTF(
       fork_exec( ppc_command_dhcp ),
       i_retval,
       ERROR_RETVAL_NET_FAIL,
       sn_cleanup,
-      "Unable to start udhcpc.\n"
+      "Unable to start DHCP.\n"
    );
    #else
    /* Set the IP. */
@@ -368,7 +371,7 @@ int stop_network( void ) {
       i_retval,
       ERROR_RETVAL_TOR_FAIL,
       xn_cleanup,
-      "Unable to stop udhcpc.\n"
+      "Unable to stop DHCP.\n"
    );
    #else
    /* Bring the interface down. */
