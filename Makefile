@@ -50,6 +50,16 @@ image: init
 		make; \
 	fi
 	@cp -v tor/src/or/tor $(TMP)/initrd/bin/tor
+	@if [ -n '`grep "^#define TOR 1$$" src/init/config_extern.h`' ] && \
+		 [ ! -f $(HOSTSDIR)/$(HOSTNAME)_tor_private ]; \
+	then \
+		openssl genrsa -out $(HOSTSDIR)/$(HOSTNAME)_tor_private 1024; \
+		hex2base32 `openssl pkey -in $(HOSTSDIR)/$(HOSTNAME)_tor_private \
+			-pubout -outform der | tail -c +23 | sha1sum | head -c 20` > \
+			$(HOSTSDIR)/$(HOSTNAME)_tor_hostname; \
+		echo `cat $(HOSTSDIR)/$(HOSTNAME)_tor_hostname`.onion > \
+			$(HOSTSDIR)/$(HOSTNAME)_tor_hostname; \
+	fi
 	@# Copy network files if the config calls for them.
 	@if [ -n '`grep "^#define NET 1$$" src/init/config_extern.h`' ]; then \
 		echo Copying network configuration...; \
