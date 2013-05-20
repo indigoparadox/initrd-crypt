@@ -1,3 +1,4 @@
 glob:build
 glob:examples/test_rsa
 glob:examples/authorized_keys
+glob:tor

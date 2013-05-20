@@ -513,6 +513,65 @@ mpr_cleanup:
 /* Portions of this code shamelessly stolen from busybox (but changed to      *
  * fit our preferred coding style.                                            */
 
+void mount_chown_root( char* pc_dir_path_in, dev_t i_root_dev_in ) {
+   DIR* ps_dir;
+   struct dirent* ps_entry;
+   struct stat s_stat;
+   char* pc_entry,
+      * pc_last_char,
+      * pc_entry_char_iter;
+
+   /* Don't descend into other filesystems. */
+   if( lstat( pc_dir_path_in, &s_stat ) || s_stat.st_dev != i_root_dev_in ) {
+      goto mcr_cleanup;
+   }
+
+   /* chown *everything*. */
+   chown( pc_dir_path_in, 0, 0 );
+
+   /* Recursively chown the contents of directories. */
+   if( S_ISDIR( s_stat.st_mode ) ) {
+      ps_dir = opendir( pc_dir_path_in );
+      if( ps_dir ) {
+         while( (ps_entry = readdir( ps_dir )) ) {
+            pc_entry = ps_entry->d_name;
+
+            /* Skip special entries. */
+            if( (
+               pc_entry[0] == '.' &&
+               (pc_entry[1] == '\0' ||
+                  (pc_entry[1] == '.' && pc_entry[2] == '\0'))
+            ) ) {
+               continue;
+            }
+
+            /* pc_entry =
+               concat_path_file( pc_dir_path_in, pc_entry ); */
+            pc_entry_char_iter = pc_entry;
+            pc_last_char = last_char_is( pc_dir_path_in, '/' );
+            while( '/' == *pc_entry_char_iter ) {
+               pc_entry_char_iter++;
+            }
+            pc_entry = xasprintf(
+               "%s%s%s",
+               pc_dir_path_in,
+               (NULL == pc_last_char ? "/" : ""),
+               pc_entry
+            );
+
+            /* Recurse to chown contents. */
+            mount_chown_root( pc_entry, i_root_dev_in );
+            free( pc_entry );
+         }
+         closedir( ps_dir );
+      }
+   }
+
+mcr_cleanup:
+   
+   return;
+}
+
 static void mount_rmtree( char* pc_dir_path_in, dev_t i_root_dev_in ) {
    DIR* ps_dir;
    struct dirent* ps_entry;

@@ -35,3 +35,67 @@ char* last_char_is( const char *s, int c ) {
    return NULL;
 }
 
+int fork_exec( char** ppc_command_in ) {
+   int i_retval = 0,
+      i_fork_pid;
+
+   i_fork_pid = fork();
+   if( 0 == i_fork_pid ) {
+      /* This is the child process. */
+
+      execv( ppc_command_in[0], ppc_command_in );
+
+   } else if( 0 < i_fork_pid ) {
+      /* This is the parent process. */
+   } else {
+      i_retval = ERROR_RETVAL_EXEC_FAIL;
+   }
+
+   return i_retval;
+}
+
+int kill_pid_file( char* pc_pid_file_path_in ) {
+   
+   #define PID_LINE_BUFFER_SIZE 50
+
+   int i_retval = 0,
+      i_pid,
+      i_pid_file;
+   char ac_pid_line[PID_LINE_BUFFER_SIZE];
+
+   PRINTF_DEBUG( "Stopping %s...\n", pc_pid_file_path_in );
+   i_pid_file = open( pc_pid_file_path_in, O_RDONLY );
+   if( 0 > i_pid_file ) {
+      #ifdef ERRORS
+      perror( "Unable to open pid file" );
+      #endif /* ERRORS */
+      i_retval |= ERROR_RETVAL_EXEC_FAIL;
+      goto kpf_cleanup;
+   }
+
+   PRINTF_DEBUG( "Reading %s...\n", pc_pid_file_path_in );
+   if(
+      0 > read( i_pid_file, ac_pid_line, PID_LINE_BUFFER_SIZE )
+   ) {
+      #ifdef ERRORS
+      perror( "Unable to read from pid file" );
+      #endif /* ERRORS */
+      goto kpf_cleanup;
+   }
+   i_pid = atoi( ac_pid_line );
+
+   PRINTF_DEBUG( "Found pid: %d, killing...\n", i_pid );
+
+   ERROR_PERROR( 
+      kill( i_pid, SIGTERM ),
+      i_retval,
+      ERROR_RETVAL_EXEC_FAIL,
+      kpf_cleanup,
+      "Unable to stop process\n"
+   );
+
+kpf_cleanup:
+
+   return i_retval;
+}
+

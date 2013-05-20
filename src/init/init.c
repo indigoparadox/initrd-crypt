@@ -34,6 +34,16 @@ void cleanup_system( int i_retval_in ) {
    /* Prepare the system to load the "real" init (or reboot). */
 
    #ifdef NET
+   #ifdef TOR
+   ERROR_PRINTF(
+      network_stop_tor(),
+      i_retval_in,
+      ERROR_RETVAL_TOR_FAIL,
+      boot_failed,
+      "Unable to stop tor daemon.\n"
+   );
+   #endif /* TOR */
+
    ERROR_PRINTF(
       network_stop_ssh(),
       i_retval_in,
@@ -107,6 +117,8 @@ void signal_handler( int i_signum_in ) {
 int main( int argc, char* argv[] ) {
    int i_retval = 0,
       i_retval_local = 0;
+   struct stat s_stat;
+   dev_t i_root_dev;
 
    /* Protect ourselves against simple potential bypasses. */
    signal( SIGTERM, signal_handler );
@@ -114,6 +126,10 @@ int main( int argc, char* argv[] ) {
    signal( SIGQUIT, signal_handler );
 
    if( 1 == getpid() ) {
+      stat( "/", &s_stat );
+      i_root_dev = s_stat.st_dev;
+      mount_chown_root( "/", i_root_dev );
+
       /* We're being called as init, so set the system up. */
       ERROR_PRINTF(
          mount_sys(),
@@ -139,6 +155,16 @@ int main( int argc, char* argv[] ) {
       if( i_retval ) {
          goto main_cleanup;
       }
+
+      #ifdef TOR
+      ERROR_PRINTF(
+         network_start_tor(),
+         i_retval,
+         ERROR_RETVAL_TOR_FAIL,
+         main_cleanup,
+         "Unable to start tor daemon.\n"
+      );
+      #endif /* TOR */
       #endif /* NET */
 
       /* TODO: Load any directed kernel modules. */
