@@ -157,7 +157,7 @@ int setup_network( void ) {
    char* pc_net_if = NULL;
    #ifdef DHCP
    char* pc_command_dhcp_string = NULL,
-      ** ppc_command_dhcp = NULL;
+      * pc_command_dhcp = NULL;
    #else
    char* pc_net_ip = NULL;
    #endif /* DHCP */
@@ -175,7 +175,6 @@ int setup_network( void ) {
    pc_command_dhcp_string = config_descramble_string(
       gac_command_dhcp, gai_command_dhcp
    );
-   ppc_command_dhcp = config_split_string_array( pc_command_dhcp_string );
    #else
    pc_net_ip = config_descramble_string( gac_net_ip, gai_net_ip );
    #endif /* DHCP */
@@ -225,11 +224,9 @@ int setup_network( void ) {
    toggle_network_interface( pc_net_if, 1 );
 
    #ifdef DHCP
-   ppc_command_dhcp = realloc( ppc_command_dhcp, 3 );
-   ppc_command_dhcp[1] = xasprintf( "%s", pc_net_if );
-   ppc_command_dhcp[2] = NULL;
+   pc_command_dhcp = xasprintf( pc_command_dhcp_string, pc_net_if );
    ERROR_PRINTF(
-      fork_exec( ppc_command_dhcp ),
+      system( pc_command_dhcp ),
       i_retval,
       ERROR_RETVAL_NET_FAIL,
       sn_cleanup,
@@ -302,7 +299,7 @@ sn_cleanup:
    free( pc_net_if );
    #ifdef DHCP
    free( pc_command_dhcp_string );
-   config_free_string_array( ppc_command_dhcp );
+   free( pc_command_dhcp );
    #else
    free( pc_net_ip );
    #endif /* DHCP */
@@ -320,11 +317,16 @@ int stop_network( void ) {
    struct ifreq s_ifreq;
    struct sockaddr_in s_addr;
    struct rtentry s_route;
-   char* pc_net_if = NULL,
+   char* pc_net_if = NULL;
+   #ifdef DHCP
+   char* pc_dhcp_pid_path_string = NULL,
       * pc_dhcp_pid_path = NULL;
+   #endif /* DHCP */
+
+   pc_net_if = config_descramble_string( gac_net_if, gai_net_if );
 
    #ifdef DHCP
-   pc_dhcp_pid_path = config_descramble_string(
+   pc_dhcp_pid_path_string = config_descramble_string(
       gac_sys_path_dhcppid, gai_sys_path_dhcppid
    );
    #endif /* DHCP */
@@ -366,10 +368,11 @@ int stop_network( void ) {
    toggle_network_interface( "lo", 0 );
 
    #ifdef DHCP
+   pc_dhcp_pid_path = xasprintf( pc_dhcp_pid_path_string, pc_net_if );
    ERROR_PRINTF(
       kill_pid_file( pc_dhcp_pid_path ),
       i_retval,
-      ERROR_RETVAL_TOR_FAIL,
+      ERROR_RETVAL_NET_FAIL,
       xn_cleanup,
       "Unable to stop DHCP.\n"
    );
@@ -401,11 +404,12 @@ int stop_network( void ) {
 xn_cleanup:
 
    close( i_socket );
+
+   free( pc_net_if );
    
    #ifdef DHCP
+   free( pc_dhcp_pid_path_string );
    free( pc_dhcp_pid_path );
-   #else
-   free( pc_net_if );
    #endif /* DHCP */
 
    #ifdef VLAN
@@ -452,7 +456,7 @@ int stop_tor( void ) {
    );
 
    ERROR_PRINTF(
-      kill_pid_file( "/var/run/tor.pid" ),
+      kill_pid_file( pc_tor_pid_path ),
       i_retval,
       ERROR_RETVAL_TOR_FAIL,
       xt_cleanup,
