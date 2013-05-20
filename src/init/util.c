@@ -36,7 +36,6 @@ char* last_char_is( const char *s, int c ) {
 }
 
 int fork_exec( char** ppc_command_in ) {
-   /* TODO: Make the retval meaningful. */
    int i_retval = 0,
       i_fork_pid;
 
@@ -48,7 +47,8 @@ int fork_exec( char** ppc_command_in ) {
 
    } else if( 0 < i_fork_pid ) {
       /* This is the parent process. */
-      return;
+   } else {
+      i_retval = ERROR_RETVAL_EXEC_FAIL;
    }
 
    return i_retval;

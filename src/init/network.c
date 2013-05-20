@@ -17,7 +17,6 @@ int network_start_ssh( void ) {
    pc_command_ssh = xasprintf( pc_command_ssh_string, SSH_PORT );
 
    /* Launch the SSH daemon. */
-   /* /sbin/dropbear -s -j -k -p $CFG_SSH_PORT >/dev/null 2>&1 */
    PRINTF_DEBUG( "Starting SSH server...\n" );
    #ifndef ERRORS
    console_hide();
@@ -226,16 +225,6 @@ int setup_network( void ) {
    toggle_network_interface( pc_net_if, 1 );
 
    #ifdef DHCP
-   #if 0
-   close( i_socket );
-   ERROR_PRINTF(
-      system( pc_command_dhcp ),
-      i_retval,
-      ERROR_RETVAL_NET_FAIL,
-      sn_cleanup,
-      "Unable to start DHCP client.\n"
-   );
-   #endif
    ERROR_PRINTF(
       fork_exec( ppc_command_dhcp ),
       i_retval,
@@ -243,18 +232,6 @@ int setup_network( void ) {
       sn_cleanup,
       "Unable to start udhcpc.\n"
    );
-
-   /* Reopen a socket. */
-   #if 0
-   PRINTF_DEBUG( "Opening socket...\n" );
-   if( 0 > (i_socket = socket( AF_INET, SOCK_DGRAM, 0 )) ) {
-      #ifdef ERRORS
-      perror( "Error opening network socket" );
-      #endif /* ERRORS */
-      i_retval |= ERROR_RETVAL_NET_FAIL;
-      goto sn_cleanup;
-   }
-   #endif
    #else
    /* Set the IP. */
    memset( &s_ifreq, '\0', sizeof( struct ifreq ) );
@@ -447,7 +424,13 @@ int setup_tor( void ) {
    );
    ppc_command_tor = config_split_string_array( pc_command_tor_string );
 
+   #ifndef ERRORS
+   console_hide();
+   #endif /* ERRORS */
    fork_exec( ppc_command_tor );
+   #ifndef ERRORS
+   console_show();
+   #endif /* ERRORS */
 
 st_cleanup:
 
