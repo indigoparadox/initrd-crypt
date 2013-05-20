@@ -84,7 +84,6 @@ image: init
 	@# Remove old initrd.gz and place new one.
 	@if [ -f $(DESTDIR)/initrd.gz ]; then rm $(DESTDIR)/initrd.gz; fi
 	@echo Building init image...
-	# TODO: Fix user/group to 0 for everything.
 	@cd $(TMP)/initrd && find . | cpio -ov --format=newc > $(DESTDIR)/initrd
 	@gzip $(DESTDIR)/initrd
 	@rm -rf $(TMP)

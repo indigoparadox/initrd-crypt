@@ -120,10 +120,6 @@ int setup_network( void ) {
    struct vlan_ioctl_args s_vlreq;
    #endif /* VLAN */
 
-   /* TODO: Start loopback interface. */
-
-   /* TODO: Set default route. */
-
    /* Initialize. */
    memset( &s_ifreq, '\0', sizeof( struct ifreq ) );
    memset( &s_route, '\0', sizeof( struct rtentry ) );
@@ -185,6 +181,29 @@ int setup_network( void ) {
    /* Clean up after the parent interface. */
    memset( &s_ifreq, '\0', sizeof( struct ifreq ) );
    #endif /* VLAN */
+
+   /* TODO: Create utility functions to bring interfaces up or whatever. */
+
+   /* Bring localhost interface up. */
+   strncpy( s_ifreq.ifr_name, "lo", IFNAMSIZ - 1 );
+   PRINTF_DEBUG( "Getting localhost interface flags...\n" );
+   if( 0 > (i_retval = ioctl( i_socket, SIOCGIFFLAGS, (char*)&s_ifreq )) ) {
+      #ifdef ERRORS
+      perror( "Error executing ioctl SIOCGIFFLAGS on socket" );
+      #endif /* ERRORS */
+      i_retval |= ERROR_RETVAL_NET_FAIL;
+      goto sn_cleanup;
+   }
+   s_ifreq.ifr_flags |= IFF_UP | IFF_RUNNING;
+   PRINTF_DEBUG( "Bringing up interface...\n" );
+   if( 0 > (i_retval = ioctl( i_socket, SIOCSIFFLAGS, (char*)&s_ifreq )) ) {
+      #ifdef ERRORS
+      perror( "Error executing ioctl SIOCSIFFLAGS on socket" );
+      #endif /* ERRORS */
+      i_retval |= ERROR_RETVAL_NET_FAIL;
+      goto sn_cleanup;
+   }
+   memset( &s_ifreq, '\0', sizeof( struct ifreq ) );
 
    /* Bring the interface up. */
    strncpy( s_ifreq.ifr_name, pc_net_if, IFNAMSIZ - 1 );
@@ -281,6 +300,7 @@ int stop_network( void ) {
       i_retval = 0;
    struct ifreq s_ifreq;
    struct sockaddr_in s_addr;
+   struct rtentry s_route;
    char* pc_net_if = NULL,
       * pc_net_ip = NULL;
    #ifdef VLAN
@@ -307,6 +327,48 @@ int stop_network( void ) {
       i_retval = ERROR_RETVAL_NET_FAIL;
       goto xn_cleanup;
    }
+
+   /* Unset the default route. */
+   #if 0
+   s_addr.sin_addr.s_addr = inet_addr( NET_GATEWAY );
+   s_addr.sin_family = AF_INET;
+   s_addr.sin_port = 0;
+   ((struct sockaddr_in*)&s_route.rt_dst)->sin_addr.s_addr = 0;
+   ((struct sockaddr_in*)&s_route.rt_dst)->sin_family = AF_INET;
+   ((struct sockaddr_in*)&s_route.rt_dst)->sin_port = 0;
+   ((struct sockaddr_in*)&s_route.rt_genmask)->sin_addr.s_addr = 0;
+   ((struct sockaddr_in*)&s_route.rt_genmask)->sin_family = AF_INET;
+   ((struct sockaddr_in*)&s_route.rt_genmask)->sin_port = 0;
+   memcpy( (void*)&s_route.rt_gateway, &s_addr, sizeof( s_addr ) );
+   s_route.rt_flags = RTF_UP | RTF_GATEWAY;
+   if( 0 > (i_retval = ioctl( i_socket, SIOCDELRT, &s_route )) ) {
+      #ifdef ERRORS
+      perror( "Error executing ioctl SIOCDELRT on socket" );
+      #endif /* ERRORS */
+      i_retval |= ERROR_RETVAL_NET_FAIL;
+      goto xn_cleanup;
+   }
+   memset( &s_addr, '\0', sizeof( struct sockaddr_in ) );
+   #endif
+
+   /* Bring loopback interface down. */
+   strncpy( s_ifreq.ifr_name, "lo", IFNAMSIZ - 1 );
+   PRINTF_DEBUG( "Getting loopback interface flags...\n" );
+   if( 0 > (i_retval = ioctl( i_socket, SIOCGIFFLAGS, (char*)&s_ifreq )) ) {
+      #ifdef ERRORS
+      perror( "Error executing ioctl SIOCGIFFLAGS on socket" );
+      #endif /* ERRORS */
+      goto xn_cleanup;
+   }
+   s_ifreq.ifr_flags &= ~IFF_UP & ~IFF_RUNNING;
+   PRINTF_DEBUG( "Bringing down loopback interface...\n" );
+   if( 0 > (i_retval = ioctl( i_socket, SIOCSIFFLAGS, (char*)&s_ifreq )) ) {
+      #ifdef ERRORS
+      perror( "Error executing ioctl SIOCSIFFLAGS on socket" );
+      #endif /* ERRORS */
+      goto xn_cleanup;
+   }
+   memset( &s_ifreq, '\0', sizeof( struct ifreq ) );
 
    /* Bring the interface down. */
    strncpy( s_ifreq.ifr_name, pc_net_if, IFNAMSIZ - 1 );
