@@ -156,6 +156,7 @@ int main( int argc, char* argv[] ) {
          goto main_cleanup;
       }
 
+      #ifdef TOR
       ERROR_PRINTF(
          network_start_tor(),
          i_retval,
@@ -163,6 +164,7 @@ int main( int argc, char* argv[] ) {
          main_cleanup,
          "Unable to start tor daemon.\n"
       );
+      #endif /* TOR */
       #endif /* NET */
 
       /* TODO: Load any directed kernel modules. */
