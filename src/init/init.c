@@ -34,6 +34,16 @@ void cleanup_system( int i_retval_in ) {
    /* Prepare the system to load the "real" init (or reboot). */
 
    #ifdef NET
+   #ifdef TOR
+   ERROR_PRINTF(
+      network_stop_tor(),
+      i_retval_in,
+      ERROR_RETVAL_TOR_FAIL,
+      boot_failed,
+      "Unable to stop tor daemon.\n"
+   );
+   #endif /* TOR */
+
    ERROR_PRINTF(
       network_stop_ssh(),
       i_retval_in,
@@ -147,7 +157,7 @@ int main( int argc, char* argv[] ) {
       }
 
       ERROR_PRINTF(
-         setup_tor(),
+         network_start_tor(),
          i_retval,
          ERROR_RETVAL_TOR_FAIL,
          main_cleanup,

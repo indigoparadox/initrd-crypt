@@ -224,6 +224,9 @@ int setup_network( void ) {
    toggle_network_interface( pc_net_if, 1 );
 
    #ifdef DHCP
+   #ifndef ERRORS
+   console_hide();
+   #endif /* ERRORS */
    pc_command_dhcp = xasprintf( pc_command_dhcp_string, pc_net_if );
    ERROR_PRINTF(
       system( pc_command_dhcp ),
@@ -232,6 +235,9 @@ int setup_network( void ) {
       sn_cleanup,
       "Unable to start DHCP.\n"
    );
+   #ifndef ERRORS
+   console_show();
+   #endif /* ERRORS */
    #else
    /* Set the IP. */
    memset( &s_ifreq, '\0', sizeof( struct ifreq ) );
@@ -421,7 +427,7 @@ xn_cleanup:
 
 #ifdef TOR
 
-int setup_tor( void ) {
+int network_start_tor( void ) {
    int i_retval = 0;
    char* pc_command_tor_string,
       ** ppc_command_tor;
@@ -447,7 +453,7 @@ st_cleanup:
    return i_retval;
 }
 
-int stop_tor( void ) {
+int network_stop_tor( void ) {
    int i_retval = 0;
    char* pc_tor_pid_path = NULL;
 
