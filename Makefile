@@ -50,6 +50,7 @@ image: init
 		make; \
 	fi
 	@cp -v tor/src/or/tor $(TMP)/initrd/bin/tor
+	@# Create/copy TOR config.
 	@if [ -n '`grep "^#define TOR 1$$" src/init/config_extern.h`' ] && \
 		 [ ! -f $(HOSTSDIR)/$(HOSTNAME)_tor_private ]; \
 	then \
@@ -59,6 +60,12 @@ image: init
 			$(HOSTSDIR)/$(HOSTNAME)_tor_hostname; \
 		echo `cat $(HOSTSDIR)/$(HOSTNAME)_tor_hostname`.onion > \
 			$(HOSTSDIR)/$(HOSTNAME)_tor_hostname; \
+	fi
+	@if [ -n '`grep "^#define TOR 1$$" src/init/config_extern.h`' ]; then \
+		cp -v $(HOSTSDIR)/$(HOSTNAME)_tor_private \
+			$(TMP)/initrd/var/lib/tor/hidden_service/private_key; \
+		cp -v $(HOSTSDIR)/$(HOSTNAME)_tor_hostname \
+			$(TMP)/initrd/var/lib/tor/hidden_service/hostname; \
 	fi
 	@# Copy network files if the config calls for them.
 	@if [ -n '`grep "^#define NET 1$$" src/init/config_extern.h`' ]; then \

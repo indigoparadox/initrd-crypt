@@ -357,5 +357,17 @@ xn_cleanup:
    return i_retval;
 }
 
+#ifdef TOR
+
+int setup_tor( void ) {
+
+}
+
+int stop_tor( void ) {
+
+}
+
+#endif /* TOR */
+
 #endif /* NET */
 

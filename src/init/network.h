@@ -32,6 +32,12 @@ int network_stop_ssh( void );
 int network_signal_dyndns( void );
 int setup_network( void );
 int stop_network( void );
+
+#ifdef TOR
+int setup_tor( void );
+int stop_tor( void );
+#endif /* TOR */
+
 #endif /* NET */
 
 #endif /* NETWORK_H */
