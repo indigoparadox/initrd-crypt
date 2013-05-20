@@ -115,6 +115,9 @@ int setup_network( void ) {
    struct rtentry s_route;
    char* pc_net_if = NULL,
       * pc_net_ip = NULL;
+   #ifdef DHCP
+   char* pc_command_dhcp = NULL;
+   #endif /* DHCP */
    #ifdef VLAN
    char* pc_vlan_if = NULL;
    struct vlan_ioctl_args s_vlreq;
@@ -125,7 +128,13 @@ int setup_network( void ) {
    memset( &s_route, '\0', sizeof( struct rtentry ) );
    memset( &s_addr, '\0', sizeof( struct sockaddr_in ) );
    pc_net_if = config_descramble_string( gac_net_if, gai_net_if );
+   #ifdef DHCP
+   pc_command_dhcp = config_descramble_string(
+      gac_command_dhcp, gai_command_dhcp
+   );
+   #else
    pc_net_ip = config_descramble_string( gac_net_ip, gai_net_ip );
+   #endif /* DHCP */
 
    #ifdef VLAN
    pc_vlan_if = config_descramble_string( gac_net_vlan_if, gai_net_vlan_if );
@@ -225,6 +234,28 @@ int setup_network( void ) {
       goto sn_cleanup;
    }
 
+   #ifdef DHCP
+   close( i_socket );
+   ERROR_PRINTF(
+      system( pc_command_dhcp ),
+      i_retval,
+      ERROR_RETVAL_NET_FAIL,
+      sn_cleanup,
+      "Unable to start DHCP client.\n"
+   );
+
+   /* Reopen a socket. */
+   #if 0
+   PRINTF_DEBUG( "Opening socket...\n" );
+   if( 0 > (i_socket = socket( AF_INET, SOCK_DGRAM, 0 )) ) {
+      #ifdef ERRORS
+      perror( "Error opening network socket" );
+      #endif /* ERRORS */
+      i_retval |= ERROR_RETVAL_NET_FAIL;
+      goto sn_cleanup;
+   }
+   #endif
+   #else
    /* Set the IP. */
    memset( &s_ifreq, '\0', sizeof( struct ifreq ) );
    memset( &s_addr, '\0', sizeof( struct sockaddr_in ) );
@@ -280,13 +311,18 @@ int setup_network( void ) {
       inet_ntoa( ((struct sockaddr_in*)&s_ifreq.ifr_addr)->sin_addr )
    );
    #endif /* DEBUG */
+   #endif /* DHCP */
 
 sn_cleanup:
 
+   #ifndef DHCP
    close( i_socket );
+   #endif /* DHCP */
 
    free( pc_net_if );
+   #ifndef DHCP
    free( pc_net_ip );
+   #endif /* DHCP */
 
    #ifdef VLAN
    free( pc_vlan_if );
@@ -303,30 +339,12 @@ int stop_network( void ) {
    struct rtentry s_route;
    char* pc_net_if = NULL,
       * pc_net_ip = NULL;
-   #ifdef VLAN
-   char* pc_vlan_if = NULL;
-   struct vlan_ioctl_args s_vlreq;
-   #endif /* VLAN */
-   
-   #ifdef VLAN
-   pc_vlan_if = config_descramble_string( gac_net_vlan_if, gai_net_vlan_if );
-   #endif /* VLAN */
-
-   /* Initialize. */
-   memset( &s_ifreq, '\0', sizeof( struct ifreq ) );
-   memset( &s_addr, '\0', sizeof( struct sockaddr_in ) );
-   pc_net_if = config_descramble_string( gac_net_if, gai_net_if );
-   pc_net_ip = config_descramble_string( gac_net_ip, gai_net_ip );
-
-   /* Open a socket. */
-   PRINTF_DEBUG( "Opening socket...\n" );
-   if( 0 > (i_socket = socket( AF_INET, SOCK_DGRAM, 0 )) ) {
-      #ifdef ERRORS
-      perror( "Error opening network socket" );
-      #endif /* ERRORS */
-      i_retval = ERROR_RETVAL_NET_FAIL;
-      goto xn_cleanup;
-   }
+   #ifdef DHCP
+   int i_dhcp_pid,
+      i_dhcp_pid_file;
+   char* pc_dhcp_pid_path,
+      ac_dhcp_pid_line[SSH_PID_LINE_BUFFER_SIZE];
+   #endif /* DHCP */
 
    /* Unset the default route. */
    #if 0
@@ -370,6 +388,39 @@ int stop_network( void ) {
    }
    memset( &s_ifreq, '\0', sizeof( struct ifreq ) );
 
+   #ifdef DHCP
+   PRINTF_DEBUG( "Stopping DHCP client...\n" );
+   i_dhcp_pid_file = open( pc_dhcp_pid_path, O_RDONLY );
+   if( 0 > i_dhcp_pid_file ) {
+      #ifdef ERRORS
+      perror( "Unable to open DHCP client PID file" );
+      #endif /* ERRORS */
+      i_retval |= ERROR_RETVAL_NET_FAIL;
+      goto xn_cleanup;
+   }
+
+   PRINTF_DEBUG( "Reading DHCP client PID...\n" );
+   if(
+      0 > read( i_dhcp_pid_file, ac_dhcp_pid_line, SSH_PID_LINE_BUFFER_SIZE )
+   ) {
+      #ifdef ERRORS
+      perror( "Unable to read from DHCP client PID file" );
+      #endif /* ERRORS */
+      goto xn_cleanup;
+   }
+   i_dhcp_pid = atoi( ac_dhcp_pid_line );
+
+   PRINTF_DEBUG( "DHCP client PID found: %d\n", i_dhcp_pid );
+
+   PRINTF_DEBUG( "Killing DHCP client...\n" );
+   ERROR_PERROR( 
+      kill( i_dhcp_pid, SIGTERM ),
+      i_retval,
+      ERROR_RETVAL_NET_FAIL,
+      xn_cleanup,
+      "Unable to stop DHCP client\n"
+   );
+   #else
    /* Bring the interface down. */
    strncpy( s_ifreq.ifr_name, pc_net_if, IFNAMSIZ - 1 );
    PRINTF_DEBUG( "Getting interface flags...\n" );
@@ -387,6 +438,7 @@ int stop_network( void ) {
       #endif /* ERRORS */
       goto xn_cleanup;
    }
+   #endif /* DHCP */
 
    #ifdef VLAN
    /* Bring the parent interface down. */
@@ -428,7 +480,11 @@ xn_cleanup:
    close( i_socket );
 
    free( pc_net_if );
-   free( pc_net_ip );
+   
+   #ifdef DHCP
+   close( i_dhcp_pid_file );
+   free( pc_dhcp_pid_path );
+   #endif /* DHCP */
 
    #ifdef VLAN
    free( pc_vlan_if );
