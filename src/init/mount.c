@@ -162,7 +162,7 @@ int mount_decrypt( char* pc_key_in ) {
       * ps_luks_vol_iter = NULL;
    char* pc_luks_vols = NULL,
       * pc_console_pw = NULL;
-   struct crypt_device* ps_crypt_device;
+   struct crypt_device* ps_crypt_device = NULL;
 
    pc_luks_vols = config_descramble_string( gac_luks_vols, gai_luks_vols );
    ps_luks_vols = config_split_string_holders( pc_luks_vols );
@@ -226,6 +226,7 @@ int mount_decrypt( char* pc_key_in ) {
          goto ad_cleanup;
       }
       crypt_free( ps_crypt_device );
+      ps_crypt_device = NULL;
 
       ps_luks_vol_iter = ps_luks_vol_iter->next;
    }
@@ -240,6 +241,9 @@ ad_cleanup:
    #endif /* CONSOLE */
    free( pc_luks_vols );
    config_free_string_holders( ps_luks_vols );
+   if( NULL != ps_crypt_device ) {
+      crypt_free( ps_crypt_device );
+   }
 
    return i_retval;
 }
