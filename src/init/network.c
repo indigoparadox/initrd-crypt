@@ -382,10 +382,10 @@ int stop_network( void ) {
       xn_cleanup,
       "Unable to stop DHCP.\n"
    );
-   #else
+   #endif /* DHCP */
+
    /* Bring the interface down. */
    toggle_network_interface( pc_net_if, 0 );
-   #endif /* DHCP */
 
    #ifdef VLAN
    /* Bring the parent interface down. */
