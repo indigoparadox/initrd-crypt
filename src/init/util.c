@@ -35,19 +35,50 @@ char* last_char_is( const char *s, int c ) {
    return NULL;
 }
 
-int fork_exec( char** ppc_command_in ) {
+int fork_exec(
+   char** ppc_command_in, char* pc_pid_file_path_in, int i_flags_in
+) {
+
+   #define FORK_EXEC_POLL_SLEEP 2
+
    int i_retval = 0,
       i_fork_pid;
+   #ifdef NET
+   int i_net_present = 0,
+      i_socket;
+   struct ifreq s_ifreq;
+
+   /* Initialize. */
+   memset( &s_ifreq, '\0', sizeof( struct ifreq ) );
+   #endif /* NET */
 
    i_fork_pid = fork();
    if( 0 == i_fork_pid ) {
       /* This is the child process. */
 
+      #ifdef NET
+      #if 0
+      if( 0 != EXEC_NEED_NET & i_flags_in ) {
+         /* Sleep until we have a valid IP address. */
+         NETWORK_OPEN_SOCKET( i_socket );
+         while( !i_net_present ) {
+            if( 0 > (i_retval = ioctl( i_socket, SIOCGIFADDR, &s_ifreq )) ) {
+               PRINTF_DEBUG( "Error executing ioctl SIOCGIFADDR on socket" );
+            } else {
+               i_net_present = 1;
+            }
+            sleep( FORK_EXEC_POLL_SLEEP );
+         }
+         close( i_socket );
+      }
+      #endif
+      #endif /* NET */
+
       execv( ppc_command_in[0], ppc_command_in );
 
-   } else if( 0 < i_fork_pid ) {
-      /* This is the parent process. */
-   } else {
+   } else if( 0 < i_fork_pid && NULL != pc_pid_file_path_in ) {
+      /* FIXME: Store the child PID in a file for later use. */
+   } else if( 0 > i_fork_pid ) {
       i_retval = ERROR_RETVAL_EXEC_FAIL;
    }
 

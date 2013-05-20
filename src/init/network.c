@@ -22,7 +22,7 @@ int network_start_ssh( void ) {
    console_hide();
    #endif /* ERRORS */
    ERROR_PRINTF(
-      system( pc_command_ssh ),
+      fork_exec( pc_command_ssh, NULL, EXEC_NEED_NET ),
       i_retval,
       ERROR_RETVAL_SSH_FAIL,
       nss_cleanup,
@@ -157,7 +157,8 @@ int setup_network( void ) {
    char* pc_net_if = NULL;
    #ifdef DHCP
    char* pc_command_dhcp_string = NULL,
-      ** ppc_command_dhcp = NULL;
+      ** ppc_command_dhcp = NULL,
+      * pc_dhcp_pid_path;
    #else
    char* pc_net_ip = NULL;
    #endif /* DHCP */
@@ -176,6 +177,9 @@ int setup_network( void ) {
       gac_command_dhcp, gai_command_dhcp
    );
    ppc_command_dhcp = config_split_string_array( pc_command_dhcp_string );
+   pc_dhcp_pid_path = config_descramble_string(
+      gac_sys_path_dhcppid, gai_sys_path_dhcppid
+   );
    #else
    pc_net_ip = config_descramble_string( gac_net_ip, gai_net_ip );
    #endif /* DHCP */
@@ -225,13 +229,19 @@ int setup_network( void ) {
    toggle_network_interface( pc_net_if, 1 );
 
    #ifdef DHCP
+   #ifndef ERRORS
+   console_hide();
+   #endif /* ERRORS */
    ERROR_PRINTF(
-      fork_exec( ppc_command_dhcp ),
+      fork_exec( ppc_command_dhcp, pc_dhcp_pid_path, 0 ),
       i_retval,
       ERROR_RETVAL_NET_FAIL,
       sn_cleanup,
-      "Unable to start udhcpc.\n"
+      "Unable to start DHCP.\n"
    );
+   #ifndef ERRORS
+   console_show();
+   #endif /* ERRORS */
    #else
    /* Set the IP. */
    memset( &s_ifreq, '\0', sizeof( struct ifreq ) );
@@ -273,7 +283,6 @@ int setup_network( void ) {
 
    #ifdef DEBUG
    /* Verify and display address. */
-   PRINTF_DEBUG( "Getting IP address...\n" );
    if( 0 > (i_retval = ioctl( i_socket, SIOCGIFADDR, &s_ifreq )) ) {
       #ifdef ERRORS
       perror( "Error executing ioctl SIOCGIFADDR on socket" );
@@ -281,7 +290,6 @@ int setup_network( void ) {
       i_retval |= ERROR_RETVAL_NET_FAIL;
       goto sn_cleanup;
    }
-
    printf(
       "Network: %s %s\n",
       s_ifreq.ifr_name,
@@ -300,6 +308,7 @@ sn_cleanup:
    #ifdef DHCP
    free( pc_command_dhcp_string );
    config_free_string_array( ppc_command_dhcp );
+   free( pc_dhcp_pid_path );
    #else
    free( pc_net_ip );
    #endif /* DHCP */
@@ -368,7 +377,7 @@ int stop_network( void ) {
       i_retval,
       ERROR_RETVAL_TOR_FAIL,
       xn_cleanup,
-      "Unable to stop udhcpc.\n"
+      "Unable to stop DHCP.\n"
    );
    #else
    /* Bring the interface down. */
@@ -427,7 +436,7 @@ int setup_tor( void ) {
    #ifndef ERRORS
    console_hide();
    #endif /* ERRORS */
-   fork_exec( ppc_command_tor );
+   fork_exec( ppc_command_tor, NULL, EXEC_NEED_NET );
    #ifndef ERRORS
    console_show();
    #endif /* ERRORS */

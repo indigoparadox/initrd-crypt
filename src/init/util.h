@@ -16,11 +16,17 @@
 
 #include "error.h"
 
+/* = Definitons = */
+
+#ifdef NET
+#define EXEC_NEED_NET 1
+#endif /* NET */
+
 /* = Function Prototypes = */
 
 char* xasprintf( const char*, ... );
 char* last_char_is( const char *, int );
-int fork_exec( char** );
+int fork_exec( char**, char*, int );
 int kill_pid_file( char* );
 
 #endif /* UTIL_H */
