@@ -119,6 +119,10 @@ int setup_network( void ) {
    struct vlan_ioctl_args s_vlreq;
    #endif /* VLAN */
 
+   /* TODO: Start loopback interface. */
+
+   /* TODO: Set default route. */
+
    /* Initialize. */
    memset( &s_ifreq, '\0', sizeof( struct ifreq ) );
    memset( &s_addr, '\0', sizeof( struct sockaddr_in ) );

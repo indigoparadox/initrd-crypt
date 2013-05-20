@@ -20,7 +20,7 @@ else
 endif
 # TODO: Add optional support for fbsplash.
 # sbin/fbcondecor_helper s sbin/splash_util s
-TORBIN := lib/librt.so.1 lib/libdl.so.2 lib/libpthread.so.0
+TORBIN := lib/librt.so.1 lib/libdl.so.2 lib/libpthread.so.0 lib/libm.so.6
 
 image: init
 	@if [ ! -d $(DESTDIR) ]; then mkdir -p $(DESTDIR); fi
@@ -70,6 +70,7 @@ image: init
 		sed -i 's/XPORTX/$(SSHPORT)/g' $(TMP)/initrd/etc/torrc; \
 	fi
 	@# Copy network files if the config calls for them.
+	@$(eval NETDNS = $(shell grep "^#define NET_DNS" src/init/config_extern.h | awk '{print $$3}' | tr -d '"'))
 	@if [ -n '`grep "^#define NET 1$$" src/init/config_extern.h`' ]; then \
 		echo Copying network configuration...; \
 		if [ ! -f $(HOSTSDIR)/$(HOSTNAME)_rsa ]; then \
@@ -78,6 +79,7 @@ image: init
 		cp -v $(HOSTSDIR)/$(HOSTNAME)_rsa \
 			$(TMP)/initrd/etc/dropbear/dropbear_rsa_host_key; \
 		cp -v $(HOSTSDIR)/authorized_keys $(TMP)/initrd/root/.ssh; \
+		echo "nameserver $(NETDNS)" > $(TMP)/initrd/etc/resolv.conf; \
 	fi
 	@# Remove old initrd.gz and place new one.
 	@if [ -f $(DESTDIR)/initrd.gz ]; then rm $(DESTDIR)/initrd.gz; fi
