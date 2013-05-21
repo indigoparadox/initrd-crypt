@@ -317,31 +317,18 @@ int mount_mds( void ) {
          ps_md_array_iter->strings[1]
       );
 
-      /* Close stdout/stderr if we're squelching errors. */
-      #ifndef ERRORS
-      console_hide();
-      #endif /* ERRORS */
-
       PRINTF_DEBUG( "Running %s...\n", ac_command_mdadm );
-      i_retval = system( ac_command_mdadm );
-
-      /* Restore stdout/stderr. */
-      #ifndef ERRORS
-      console_show();
-      #endif /* ERRORS */
+      ERROR_PRINTF_SYSTEM(
+         ac_command_mdadm,
+         i_retval,
+         0,
+         mm_cleanup,
+         "There was a problem starting %s.\n",
+         ps_md_array_iter->name 
+      );
 
       /* free( pc_command_mdadm ); */
-      
       /* printf( "%s\n", ac_command_mdadm ); */
-
-      if( i_retval ) {
-         #ifdef ERRORS
-         PRINTF_ERROR(
-            "There was a problem starting %s.\n", ps_md_array_iter->name 
-         );
-         #endif /* ERRORS */
-         goto mm_cleanup;
-      }
 
       ps_md_array_iter = ps_md_array_iter->next;
    }

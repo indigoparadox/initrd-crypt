@@ -39,6 +39,13 @@
       goto golabel; \
    }
 
+#define ERROR_PRINTF_SYSTEM( command, retval, errno, golabel, ... ) \
+   if( system( command ) ) { \
+      fprintf( stderr, __VA_ARGS__ ); \
+      retval |= errno; \
+      goto golabel; \
+   }
+
 #define ERROR_PERROR( test, retval, errno, golabel, errmsg ) \
    if( test ) { \
       perror( errmsg ); \
@@ -56,9 +63,21 @@
 
 #define ERROR_PRINTF( test, retval, errno, golabel, ... ) \
    if( test ) { \
-      retval |= errno; \
+      if( errno ) { \
+         retval |= errno; \
+      } \
       goto golabel; \
    }
+
+#define ERROR_PRINTF_SYSTEM( command, retval, errno, golabel, ... ) \
+   console_hide(); \
+   if( system( command ) ) { \
+      if( errno ) { \
+         retval |= errno; \
+      } \
+      goto golabel; \
+   } \
+   console_show();
 
 #define ERROR_PERROR( test, retval, errno, golabel, errmsg ) \
    if( test ) { \
