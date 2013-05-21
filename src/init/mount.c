@@ -275,6 +275,9 @@ int mount_mds( void ) {
    /* Iterate through the host-specific data structure and create md arrays.  */
    PRINTF_DEBUG( "Building mdadm command line...\n" );
    while( NULL != ps_md_array_iter ) {
+      
+      /* FIXME: Modernize this process with xasprintf(). */
+
       i_command_mdadm_strlen += strlen( "/dev/" ) + 1; /* +1 for the space. */
       i_command_mdadm_strlen += strlen( ps_md_array_iter->name );
 
@@ -319,7 +322,7 @@ int mount_mds( void ) {
       console_hide();
       #endif /* ERRORS */
 
-      PRINTF_DEBUG( "Running %s...", ac_command_mdadm );
+      PRINTF_DEBUG( "Running %s...\n", ac_command_mdadm );
       i_retval = system( ac_command_mdadm );
 
       /* Restore stdout/stderr. */
@@ -355,6 +358,8 @@ mm_cleanup:
 
 int mount_probe_lvm( void ) {
    int i_retval = 0;
+
+   /* FIXME: Hide the console if errors are off here? */
 
    ERROR_PRINTF(
       system( "/sbin/vgscan --mknodes" ),

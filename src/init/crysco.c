@@ -23,6 +23,10 @@ int prompt_decrypt( void ) {
       /* Echo in case we drop to console or something. */
       console_echo_on();
 
+      #if DEBUG
+      printf( "KEY: \"%s\"\n", pc_key_buffer );
+      #endif /* DEBUG */
+
       /* Perform the decryption, passing the resulting retval back. */
       i_retval = mount_decrypt( pc_key_buffer );
       /* See if decryption was successful. */
