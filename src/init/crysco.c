@@ -7,7 +7,7 @@
  *          decryption attempt routine for each key provided.                 */
 /* Return: 0 on success, 1 on failure.                                        */
 int prompt_decrypt( void ) {
-   char* pc_key_buffer;
+   char* pc_key_buffer = NULL;
    int i_key_attempts = 0,
       i_retval = 0;
    

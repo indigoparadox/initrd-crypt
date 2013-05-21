@@ -100,6 +100,7 @@ char* console_prompt_string( void ) {
       i_key_index++;
       i_key_buffer_size++;
       pc_key_buffer = realloc( pc_key_buffer, i_key_buffer_size );
+      pc_key_buffer[i_key_index] = '\0'; /* Ensure NULL termination. */
    }
 
    return pc_key_buffer;

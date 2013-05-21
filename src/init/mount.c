@@ -231,9 +231,6 @@ int mount_decrypt( char* pc_key_in ) {
       ps_luks_vol_iter = ps_luks_vol_iter->next;
    }
 
-   #ifdef LVM
-   #endif /* LVM */
-
 ad_cleanup:
 
    #ifdef CONSOLE
@@ -247,7 +244,6 @@ ad_cleanup:
 
    return i_retval;
 }
-
 
 /* Purpose: Setup /dev/md devices if any exist.                               */
 /* Return: 0 on success, 1 on failure.                                        */
@@ -345,18 +341,25 @@ mm_cleanup:
 
 int mount_probe_lvm( void ) {
    int i_retval = 0;
+   char* pc_command_vgscan = NULL,
+      * pc_command_vgchange = NULL;
 
-   /* FIXME: Hide the console if errors are off here? */
+   pc_command_vgscan = config_descramble_string(
+      gac_command_vgscan, gai_command_vgscan
+   );
+   pc_command_vgchange = config_descramble_string(
+      gac_command_vgchange, gai_command_vgchange
+   );
 
-   ERROR_PRINTF(
-      system( "/sbin/vgscan --mknodes" ),
+   ERROR_PRINTF_SYSTEM(
+      pc_command_vgscan,
       i_retval,
       ERROR_RETVAL_LVM_FAIL,
       mpl_cleanup,
       "There was a problem making LVM nodes.\n"
    );
-   ERROR_PRINTF(
-      system( "/sbin/vgchange -a ay" ),
+   ERROR_PRINTF_SYSTEM(
+      pc_command_vgchange,
       i_retval,
       ERROR_RETVAL_LVM_FAIL,
       mpl_cleanup,
@@ -364,6 +367,9 @@ int mount_probe_lvm( void ) {
    );
 
 mpl_cleanup:
+
+   free( pc_command_vgscan );
+   free( pc_command_vgchange );
 
    return i_retval;
 }
@@ -523,7 +529,11 @@ void mount_chown_root( char* pc_dir_path_in, dev_t i_root_dev_in ) {
    }
 
    /* chown *everything*. */
-   chown( pc_dir_path_in, 0, 0 );
+   if( chown( pc_dir_path_in, 0, 0 ) ) {
+      #ifdef ERRORS
+      perror( pc_dir_path_in );
+      #endif /* ERRORS */
+   }
 
    /* Recursively chown the contents of directories. */
    if( S_ISDIR( s_stat.st_mode ) ) {

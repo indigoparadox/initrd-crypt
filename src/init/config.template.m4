@@ -23,5 +23,7 @@ dnl CONFIG_SCR(command_ssh,`/sbin/dropbear|-s|-j|-k|-p|22')
 CONFIG_SCR(command_ssh,`/sbin/dropbear -s -j -k -P /var/run/dropbear.pid -p %s')
 CONFIG_SCR(command_tor,`/bin/tor|--quiet|-f|/etc/torrc')
 CONFIG_SCR(command_dhcp,`/sbin/dhcpcd %s')
+CONFIG_SCR(command_vgscan,`/sbin/vgscan --mknodes')
+CONFIG_SCR(command_vgchange,`/sbin/vgchange -a ay')
 
 /* = Host-Specific Configuration = */
