@@ -48,6 +48,7 @@ image: init
 			--enable-static-libevent \
 			--enable-static-openssl \
 			--enable-static-zlib \
+			--disable-asciidoc \
 			--with-libevent-dir=/usr/lib \
 			--with-openssl-dir=/usr/lib \
 			--with-zlib-dir=/usr/lib; \
