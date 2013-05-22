@@ -328,6 +328,10 @@ int stop_network( void ) {
    char* pc_dhcp_pid_path_string = NULL,
       * pc_dhcp_pid_path = NULL;
    #endif /* DHCP */
+   #ifdef VLAN
+   char* pc_vlan_if = NULL;
+   struct vlan_ioctl_args s_vlreq;
+   #endif /* VLAN */
 
    pc_net_if = config_descramble_string( gac_net_if, gai_net_if );
 
@@ -336,6 +340,10 @@ int stop_network( void ) {
       gac_sys_path_dhcppid, gai_sys_path_dhcppid
    );
    #endif /* DHCP */
+
+   #ifdef VLAN
+   pc_vlan_if = config_descramble_string( gac_net_vlan_if, gai_net_vlan_if );
+   #endif /* VLAN */
 
    /* Open a socket. */
    PRINTF_DEBUG( "Opening socket...\n" );

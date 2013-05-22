@@ -11,7 +11,7 @@ endif
 OBJS = config.o init.o mount.o crysco.o console.o network.o util.o
 BIN = init
 ALLDEPS := init
-HOSTSDIR := $(shell pwd)/../../examples
+HOSTSDIR := $(shell pwd)/../../config
 HOSTNAME := test
 ifeq ($(RELEASE),release)
 	ALLDEPS += strip
