@@ -48,9 +48,9 @@ image: init
 			--enable-static-libevent \
 			--enable-static-openssl \
 			--enable-static-zlib \
-			--with-libevent-dir=/usr/lib64 \
-			--with-openssl-dir=/usr/lib64 \
-			--with-zlib-dir=/usr/lib64; \
+			--with-libevent-dir=/usr/lib \
+			--with-openssl-dir=/usr/lib \
+			--with-zlib-dir=/usr/lib; \
 		make; \
 	fi
 	@cp -v tor/src/or/tor $(TMP)/initrd/bin/tor
