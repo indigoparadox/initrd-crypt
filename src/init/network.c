@@ -48,52 +48,24 @@ int network_stop_ssh( void ) {
    /* TODO: Define the constant centrally/use another constant. */
    #define SSH_PID_LINE_BUFFER_SIZE 50
 
-   int i_retval = 0,
-      i_ssh_pid,
-      i_ssh_pid_file;
-   char* pc_ssh_pid_path,
-      ac_ssh_pid_line[SSH_PID_LINE_BUFFER_SIZE];
+   int i_retval = 0;
+   char* pc_ssh_pid_path;
 
    pc_ssh_pid_path = config_descramble_string( 
       gac_sys_path_sshpid,
       gai_sys_path_sshpid
    );
 
-   PRINTF_DEBUG( "Stopping SSH server...\n" );
-   i_ssh_pid_file = open( pc_ssh_pid_path, O_RDONLY );
-   if( 0 > i_ssh_pid_file ) {
-      #ifdef ERRORS
-      perror( "Unable to open SSH server PID file" );
-      #endif /* ERRORS */
-      i_retval |= ERROR_RETVAL_SSH_FAIL;
-      goto nxs_cleanup;
-   }
-
-   PRINTF_DEBUG( "Reading SSH server PID...\n" );
-   if(
-      0 > read( i_ssh_pid_file, ac_ssh_pid_line, SSH_PID_LINE_BUFFER_SIZE )
-   ) {
-      #ifdef ERRORS
-      perror( "Unable to read from SSH server PID file" );
-      #endif /* ERRORS */
-      goto nxs_cleanup;
-   }
-   i_ssh_pid = atoi( ac_ssh_pid_line );
-
-   PRINTF_DEBUG( "SSH PID found: %d\n", i_ssh_pid );
-
-   PRINTF_DEBUG( "Killing SSH server...\n" );
-   ERROR_PERROR( 
-      kill( i_ssh_pid, SIGTERM ),
+   ERROR_PRINTF(
+      kill_pid_file( pc_ssh_pid_path ),
       i_retval,
-      ERROR_RETVAL_SSH_FAIL,
+      ERROR_RETVAL_NET_FAIL,
       nxs_cleanup,
-      "Unable to stop SSH daemon\n"
+      "Unable to stop SSH.\n"
    );
 
 nxs_cleanup:
 
-   close( i_ssh_pid_file );
    free( pc_ssh_pid_path );
 
    return i_retval;
