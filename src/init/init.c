@@ -25,7 +25,7 @@ void cleanup_system( int i_retval_in ) {
       gai_sys_mpoint_root
    );
 
-   if( i_retval_in ) {
+   if( i_retval_in && ERROR_RETVAL_SHUTDOWN != i_retval_in ) {
       /* Drop to console or whatever without trying to clean up if we already *
        * have an error.                                                       */
       goto boot_failed;
@@ -33,33 +33,36 @@ void cleanup_system( int i_retval_in ) {
 
    /* Prepare the system to load the "real" init (or reboot). */
 
-   #ifdef NET
-   #ifdef TOR
-   ERROR_PRINTF(
-      network_stop_tor(),
-      i_retval_in,
-      ERROR_RETVAL_TOR_FAIL,
-      boot_failed,
-      "Unable to stop tor daemon.\n"
-   );
-   #endif /* TOR */
+   /* TODO: Come up with a more uniform way to see if we skipped most setup. */
+   if( !(ERROR_RETVAL_SHUTDOWN & i_retval_in) ) {
+      #ifdef NET
+      #ifdef TOR
+      ERROR_PRINTF(
+         network_stop_tor(),
+         i_retval_in,
+         ERROR_RETVAL_TOR_FAIL,
+         boot_failed,
+         "Unable to stop tor daemon.\n"
+      );
+      #endif /* TOR */
 
-   ERROR_PRINTF(
-      network_stop_ssh(),
-      i_retval_in,
-      ERROR_RETVAL_SSH_FAIL,
-      boot_failed,
-      "Unable to stop SSH daemon.\n"
-   );
+      ERROR_PRINTF(
+         network_stop_ssh(),
+         i_retval_in,
+         ERROR_RETVAL_SSH_FAIL,
+         boot_failed,
+         "Unable to stop SSH daemon.\n"
+      );
 
-   ERROR_PRINTF(
-      stop_network(),
-      i_retval_in,
-      ERROR_RETVAL_NET_FAIL,
-      boot_failed,
-      "Unable to stop network.\n"
-   );
-   #endif /* NET */
+      ERROR_PRINTF(
+         stop_network(),
+         i_retval_in,
+         ERROR_RETVAL_NET_FAIL,
+         boot_failed,
+         "Unable to stop network.\n"
+      );
+      #endif /* NET */
+   }
 
    ERROR_PRINTF(
       umount_sys(),
@@ -68,6 +71,12 @@ void cleanup_system( int i_retval_in ) {
       boot_failed,
       "Unable to unmount system directories.\n"
    );
+
+   /* Perform alternate commands. */
+   if( ERROR_RETVAL_SHUTDOWN & i_retval_in ) {
+      reboot( LINUX_REBOOT_CMD_POWER_OFF );
+      exit( 0 );
+   }
 
    /* Execute switchroot on success, reboot on failure. */
    ERROR_PRINTF(
@@ -138,6 +147,14 @@ int main( int argc, char* argv[] ) {
          main_cleanup,
          "There was a problem mounting dynamic system filesystems.\n"
       );
+
+      /* TODO: Examine the kernel command line for a shutdown command. */
+      switch( parse_cmd_line() ) {
+         case CMDLINE_SHUTDOWN:
+            i_retval |= ERROR_RETVAL_SHUTDOWN;
+            cleanup_system( i_retval );
+            break;
+      }
 
       PRINTF_DEBUG( "Setting up md devices...\n" );
       i_retval = mount_mds();

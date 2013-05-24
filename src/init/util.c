@@ -99,3 +99,49 @@ kpf_cleanup:
    return i_retval;
 }
 
+int parse_cmd_line( void ) {
+   int i_cmdline,
+      i_retval = 0;
+   regex_t s_regex;
+   char ac_cmdline[4096];
+
+   PRINTF_DEBUG( "Checking kernel command line...\n" );
+
+   memset( ac_cmdline, '\0', 4096 );
+
+   i_cmdline = open( "/proc/cmdline", O_RDONLY );
+   if( 0 > i_cmdline ) {
+      #ifdef ERRORS
+      perror( "Unable to open kernel command line" );
+      #endif /* ERRORS */
+      return 0;
+   }
+
+   if( regcomp( &s_regex, "ifdy=shutdown", 0 ) ) {
+      #ifdef ERRORS
+      perror( "Unable to compile command line regex" );
+      #endif /* ERRORS */
+      goto pcl_cleanup;
+   }
+
+   if( 0 > read( i_cmdline, ac_cmdline, 4095 ) ) {
+      #ifdef ERRORS
+      perror( "Unable to parse kernel command line" );
+      #endif /* ERRORS */
+      goto pcl_cleanup;
+   }
+
+   if( !regexec( &s_regex, ac_cmdline, 0, NULL, 0 ) ) {
+      PRINTF_DEBUG( "Shutdown command found.\n" );
+      i_retval |= CMDLINE_SHUTDOWN;
+   }
+
+pcl_cleanup:
+
+   regfree( &s_regex );
+
+   close( i_cmdline );
+
+   return i_retval;
+}
+

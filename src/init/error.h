@@ -2,6 +2,7 @@
 #ifndef ERROR_H
 #define ERROR_H
 
+/* TODO: Make the actual errors return negative numbers. */
 #define ERROR_RETVAL_ROOT_FAIL 1
 #define ERROR_RETVAL_MAPPER_FAIL 2
 #define ERROR_RETVAL_SYSFS_FAIL 4
@@ -18,6 +19,7 @@
 #define ERROR_RETVAL_SWITCH_FAIL 8192
 #define ERROR_RETVAL_TOR_FAIL 16384
 #define ERROR_RETVAL_EXEC_FAIL 32768
+#define ERROR_RETVAL_SHUTDOWN 65536 /* Also not technically an error. */
 
 /* = Macros = */
 
