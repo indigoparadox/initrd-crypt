@@ -12,6 +12,8 @@
 #include "network.h"
 #include "error.h"
 
+#define READ_CMDLINE_BUFFER 4096
+
 char* gpc_serial_listen = NULL;
 extern int gi_serial_port;
 
@@ -25,7 +27,8 @@ void cleanup_system( int i_retval_in ) {
       gai_sys_mpoint_root
    );
 
-   if( i_retval_in ) {
+   /* TODO: Come up with a more uniform way to see if we skipped most setup. */
+   if( i_retval_in && ERROR_RETVAL_SHUTDOWN != i_retval_in ) {
       /* Drop to console or whatever without trying to clean up if we already *
        * have an error.                                                       */
       goto boot_failed;
@@ -68,6 +71,12 @@ void cleanup_system( int i_retval_in ) {
       boot_failed,
       "Unable to unmount system directories.\n"
    );
+
+   /* Perform alternate commands. */
+   if( ERROR_RETVAL_SHUTDOWN & i_retval_in ) {
+      reboot( LINUX_REBOOT_CMD_POWER_OFF );
+      exit( 0 );
+   }
 
    /* Execute switchroot on success, reboot on failure. */
    ERROR_PRINTF(
@@ -116,9 +125,13 @@ void signal_handler( int i_signum_in ) {
 
 int main( int argc, char* argv[] ) {
    int i_retval = 0,
-      i_retval_local = 0;
+      i_retval_local = 0,
+      i_cmdline = 0;
    struct stat s_stat;
    dev_t i_root_dev;
+   char ac_cmdline[READ_CMDLINE_BUFFER] = { 0 };
+   regmatch_t pmatch[2];
+   regex_t s_regex;
 
    /* Protect ourselves against simple potential bypasses. */
    signal( SIGTERM, signal_handler );
@@ -172,8 +185,45 @@ int main( int argc, char* argv[] ) {
       /* TODO: Start the splash screen (deprecated). */
    }
 
-   /* Start the challenge! */
-   i_retval = prompt_decrypt();
+   /* TODO: Use ERROR_PRINTF() here. */
+   if( regcomp( &s_regex, "ifdy=\\([a-zA-Z0-9]*\\)", 0 ) ) {
+      #ifdef ERRORS
+      perror( "Unable to compile cmdline regex" );
+      #endif /* ERRORS */
+      i_retval = ERROR_RETVAL_REGEX_FAIL;
+      goto main_cleanup;
+   }
+
+   /* Read the kernel cmdline. */
+   i_cmdline = open( "/proc/cmdline", O_RDONLY );
+   if(
+      0 < i_cmdline &&
+      0 > read( i_cmdline, ac_cmdline, READ_CMDLINE_BUFFER )
+   ) {
+      #ifdef ERRORS
+      perror( "Unable to read kernel cmdline" );
+      #endif /* ERRORS */
+   } else {
+      PRINTF_DEBUG( "Kernel command line: %s\n", ac_cmdline );
+   }
+   close( i_cmdline );
+
+   /* Act based on the system imperative. */
+   if(
+      !regexec( &s_regex, ac_cmdline, 2, pmatch, 0 ) &&
+      !strncmp(
+         "shutdown",
+         &ac_cmdline[pmatch[1].rm_so],
+         strlen( "shutdown" )
+      )
+   ) {
+      /* Give some time for daemons to start and create pid files. */
+      sleep( 1 );
+      i_retval |= ERROR_RETVAL_SHUTDOWN;
+   } else {
+      /* Start the challenge! */
+      i_retval = prompt_decrypt();
+   }
 
    if( 1 != getpid() && !i_retval ) {
       /* We're being called as a sub-prompt, so just prompt to decrypt and    *
@@ -193,6 +243,8 @@ int main( int argc, char* argv[] ) {
    }
 
 main_cleanup:
+
+   regfree( &s_regex );
 
    if( 1 == getpid() ) {
       cleanup_system( i_retval );

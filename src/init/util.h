@@ -13,6 +13,7 @@
 #include <signal.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <regex.h>
 
 #include "error.h"
 
@@ -22,6 +23,7 @@ char* xasprintf( const char*, ... );
 char* last_char_is( const char *, int );
 int fork_exec( char** );
 int kill_pid_file( char* );
+int parse_cmd_line( void );
 
 #endif /* UTIL_H */
 
