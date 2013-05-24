@@ -100,14 +100,18 @@ kpf_cleanup:
 }
 
 int parse_cmd_line( void ) {
-   int i_cmdline,
-      i_retval = 0;
+
+   #define CMDLINE_BUFFER_SIZE 256
+
+   int i_cmdline = 0,
+      i_retval = 0,
+      i_read_result = 0;
    regex_t s_regex;
-   char ac_cmdline[4096];
+   char* pc_cmdline = NULL;
 
    PRINTF_DEBUG( "Checking kernel command line...\n" );
 
-   memset( ac_cmdline, '\0', 4096 );
+   pc_cmdline = calloc( CMDLINE_BUFFER_SIZE, sizeof( char ) );
 
    i_cmdline = open( "/proc/cmdline", O_RDONLY );
    if( 0 > i_cmdline ) {
@@ -115,6 +119,15 @@ int parse_cmd_line( void ) {
       perror( "Unable to open kernel command line" );
       #endif /* ERRORS */
       return 0;
+   } else {
+      i_read_result = read( i_cmdline, pc_cmdline, CMDLINE_BUFFER_SIZE - 1 );
+      close( i_cmdline );
+      if( 0 > i_read_result ) {
+         #ifdef ERRORS
+         perror( "Unable to parse kernel command line" );
+         #endif /* ERRORS */
+         goto pcl_cleanup;
+      }
    }
 
    if( regcomp( &s_regex, "ifdy=shutdown", 0 ) ) {
@@ -124,14 +137,7 @@ int parse_cmd_line( void ) {
       goto pcl_cleanup;
    }
 
-   if( 0 > read( i_cmdline, ac_cmdline, 4095 ) ) {
-      #ifdef ERRORS
-      perror( "Unable to parse kernel command line" );
-      #endif /* ERRORS */
-      goto pcl_cleanup;
-   }
-
-   if( !regexec( &s_regex, ac_cmdline, 0, NULL, 0 ) ) {
+   if( !regexec( &s_regex, pc_cmdline, 0, NULL, 0 ) ) {
       PRINTF_DEBUG( "Shutdown command found.\n" );
       i_retval |= CMDLINE_SHUTDOWN;
    }
@@ -140,7 +146,7 @@ pcl_cleanup:
 
    regfree( &s_regex );
 
-   close( i_cmdline );
+   free( pc_cmdline );
 
    return i_retval;
 }
