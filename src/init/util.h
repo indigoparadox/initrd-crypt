@@ -17,9 +17,6 @@
 
 #include "error.h"
 
-#define CMDLINE_NONE 0
-#define CMDLINE_SHUTDOWN 1
-
 /* = Function Prototypes = */
 
 char* xasprintf( const char*, ... );

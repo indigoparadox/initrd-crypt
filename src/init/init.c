@@ -27,6 +27,7 @@ void cleanup_system( int i_retval_in ) {
       gai_sys_mpoint_root
    );
 
+   /* TODO: Come up with a more uniform way to see if we skipped most setup. */
    if( i_retval_in && ERROR_RETVAL_SHUTDOWN != i_retval_in ) {
       /* Drop to console or whatever without trying to clean up if we already *
        * have an error.                                                       */
@@ -35,36 +36,33 @@ void cleanup_system( int i_retval_in ) {
 
    /* Prepare the system to load the "real" init (or reboot). */
 
-   /* TODO: Come up with a more uniform way to see if we skipped most setup. */
-   if( !(ERROR_RETVAL_SHUTDOWN & i_retval_in) ) {
-      #ifdef NET
-      #ifdef TOR
-      ERROR_PRINTF(
-         network_stop_tor(),
-         i_retval_in,
-         ERROR_RETVAL_TOR_FAIL,
-         boot_failed,
-         "Unable to stop tor daemon.\n"
-      );
-      #endif /* TOR */
+   #ifdef NET
+   #ifdef TOR
+   ERROR_PRINTF(
+      network_stop_tor(),
+      i_retval_in,
+      ERROR_RETVAL_TOR_FAIL,
+      boot_failed,
+      "Unable to stop tor daemon.\n"
+   );
+   #endif /* TOR */
 
-      ERROR_PRINTF(
-         network_stop_ssh(),
-         i_retval_in,
-         ERROR_RETVAL_SSH_FAIL,
-         boot_failed,
-         "Unable to stop SSH daemon.\n"
-      );
+   ERROR_PRINTF(
+      network_stop_ssh(),
+      i_retval_in,
+      ERROR_RETVAL_SSH_FAIL,
+      boot_failed,
+      "Unable to stop SSH daemon.\n"
+   );
 
-      ERROR_PRINTF(
-         stop_network(),
-         i_retval_in,
-         ERROR_RETVAL_NET_FAIL,
-         boot_failed,
-         "Unable to stop network.\n"
-      );
-      #endif /* NET */
-   }
+   ERROR_PRINTF(
+      stop_network(),
+      i_retval_in,
+      ERROR_RETVAL_NET_FAIL,
+      boot_failed,
+      "Unable to stop network.\n"
+   );
+   #endif /* NET */
 
    ERROR_PRINTF(
       umount_sys(),
@@ -154,11 +152,6 @@ int main( int argc, char* argv[] ) {
          "There was a problem mounting dynamic system filesystems.\n"
       );
 
-      /* TODO: Examine the kernel command line for a shutdown command. */
-      /*if( CMDLINE_SHUTDOWN & parse_cmd_line() ) {
-         cleanup_system( i_retval );
-      }*/
-
       PRINTF_DEBUG( "Setting up md devices...\n" );
       i_retval = mount_mds();
       if( i_retval ) {
@@ -224,6 +217,8 @@ int main( int argc, char* argv[] ) {
          strlen( "shutdown" )
       )
    ) {
+      /* Give some time for daemons to start and create pid files. */
+      sleep( 1 );
       i_retval |= ERROR_RETVAL_SHUTDOWN;
    } else {
       /* Start the challenge! */
@@ -248,6 +243,8 @@ int main( int argc, char* argv[] ) {
    }
 
 main_cleanup:
+
+   regfree( &s_regex );
 
    if( 1 == getpid() ) {
       cleanup_system( i_retval );
