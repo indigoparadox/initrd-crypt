@@ -39,7 +39,7 @@ CONFIG_SCR(`sys_console_pw',`console')
 
 /* == Other == */
 
-CONFIG_RAW(`COPY_FIRMWARE',`"lib64/firmware/rtl_nic/rtl8168e-1.fw lib64/firmware/rtl_nic/rtl8168e-2.fw lib64/firmware/rtl_nic/rtl8168e-3.fw"');
+CONFIG_RAW(`COPY_FIRMWARE',`"lib64/firmware/rtl_nic/rtl8168e-1.fw lib64/firmware/rtl_nic/rtl8168e-2.fw lib64/firmware/rtl_nic/rtl8168e-3.fw"')
 
 CONFIG_END()
 

@@ -122,7 +122,7 @@ image: init
 		echo "nameserver $(NETDNS)" > $(TMP)/initrd/etc/resolv.conf; \
 	fi
 	@# Copy firmware.
-	$(eval FIRMWARE = $(shell pcregrep -o1 "^#define COPY_FIRMWARE \"(.+)\";" ./src/init/config_base.h))
+	$(eval FIRMWARE = $(shell pcregrep -o1 "^#define COPY_FIRMWARE \"(.+)\"" ./src/init/config_base.h))
 	$(foreach var,$(FIRMWARE),mkdir -p $(TMP)/initrd/$(shell dirname $(var));)
 	$(foreach var,$(FIRMWARE),cp -vL /$(var) $(TMP)/initrd/$(var);)
 	@# Remove old initrd.gz and place new one.
