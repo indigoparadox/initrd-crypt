@@ -11,17 +11,52 @@ HOSTNAME := $(shell hostname)
 LDVER := 2.15
 ifeq ($(shell uname -m),x86_64)
 	# 64-bit X86 Binaries
-	IMGBINSTATIC := bin/busybox sbin/cryptsetup sbin/lvm.static sbin/mdadm 
-	IMGBINDYNAMIC := usr/sbin/dropbear lib/ld-linux.so.2 lib/libc.so.6 lib/libcrypt.so.1 lib/libnss_files-$(LDVER).so lib/libnss_files.so.2 lib/libutil.so.1 lib/libz.so.1 lib/ld-$(LDVER).so lib/ld-linux-x86-64.so.2
+	IMGBINSTATIC := \
+		bin/busybox \
+		sbin/cryptsetup \
+		sbin/lvm.static \
+		sbin/mdadm 
+	IMGBINDYNAMIC := \
+		usr/sbin/dropbear \
+		lib/ld-linux.so.2 \
+		lib/libc.so.6 \
+		lib/libcrypt.so.1 \
+		lib/libnss_files-$(LDVER).so \
+		lib/libnss_files.so.2 \
+		lib/libutil.so.1 \
+		lib/libz.so.1 \
+		lib/ld-$(LDVER).so \
+		lib/ld-linux-x86-64.so.2
 else
 	# 32-bit X86 Binaries
-	IMGBINSTATIC := bin/busybox sbin/cryptsetup sbin/lvm.static sbin/mdadm
-	IMGBINDYNAMIC := usr/sbin/dropbear lib/ld-linux.so.2 lib/libc.so.6 lib/libcrypt.so.1 lib/libnss_files-$(LDVER).so lib/libnss_files.so.2 lib/libutil.so.1 lib/libz.so.1
+	IMGBINSTATIC := \
+		bin/busybox \
+		sbin/cryptsetup \
+		sbin/lvm.static \
+		sbin/mdadm
+	IMGBINDYNAMIC := \
+		usr/sbin/dropbear \
+		lib/ld-linux.so.2 \
+		lib/libc.so.6 \
+		lib/libcrypt.so.1 \
+		lib/libnss_files-$(LDVER).so \
+		lib/libnss_files.so.2 \
+		lib/libutil.so.1 \
+		lib/libz.so.1
 endif
 # TODO: Add optional support for fbsplash.
 # sbin/fbcondecor_helper s sbin/splash_util s
-TORBIN := lib/librt.so.1 lib/libdl.so.2 lib/libpthread.so.0 lib/libm.so.6
-DHCPBIN := lib/librt.so.1 lib/libpthread.so.0 sbin/dhcpcd
+TORBIN := \
+	lib/librt.so.1 \
+	lib/libdl.so.2 \
+	lib/libpthread.so.0 \
+	lib/libm.so.6
+DHCPBIN := \
+	lib/librt.so.1 \
+	lib/libpthread.so.0 \
+	sbin/dhcpcd \
+	lib/dhcpcd/dhcpcd-run-hooks \
+	lib/dhcpcd/dhcpcd-hooks/20-resolv.conf
 
 image: init
 	@if [ ! -d $(DESTDIR) ]; then mkdir -p $(DESTDIR); fi
