@@ -65,7 +65,7 @@ image: init
 	# TODO: Make sure static files are static and dynamic files aren't.
 	@$(foreach var,$(IMGBINSTATIC),cp -vL /$(var) $(TMP)/initrd/$(var);)
 	@$(foreach var,$(IMGBINDYNAMIC),cp -vL /$(var) $(TMP)/initrd/$(var);)
-	@cp src/init/init $(TMP)/initrd/init
+	@cp -v src/init/init $(TMP)/initrd/init
 	@if [ -n '`grep "^#define DHCP 1$$" src/init/config_extern.h`' ]; then \
 		$(foreach var,$(DHCPBIN),cp -vL /$(var) $(TMP)/initrd/$(var);) \
 	fi
@@ -121,6 +121,10 @@ image: init
 		cp -v $(HOSTSDIR)/authorized_keys $(TMP)/initrd/root/.ssh; \
 		echo "nameserver $(NETDNS)" > $(TMP)/initrd/etc/resolv.conf; \
 	fi
+	@# Copy firmware.
+	$(eval FIRMWARE = $(shell pcregrep -o1 "^#define COPY_FIRMWARE \"(.+)\";" ./src/init/config_base.h))
+	$(foreach var,$(FIRMWARE),mkdir -p $(TMP)/initrd/$(shell dirname $(var));)
+	$(foreach var,$(FIRMWARE),cp -vL /$(var) $(TMP)/initrd/$(var);)
 	@# Remove old initrd.gz and place new one.
 	@if [ -f $(DESTDIR)/initrd.gz ]; then rm $(DESTDIR)/initrd.gz; fi
 	@echo Building init image...
