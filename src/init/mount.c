@@ -161,7 +161,9 @@ int mount_decrypt( char* pc_key_in ) {
    struct string_holder* ps_luks_vols = NULL,
       * ps_luks_vol_iter = NULL;
    char* pc_luks_vols = NULL,
-      * pc_console_pw = NULL;
+      * pc_console_pw = NULL,
+      * pc_luks_vol_dev_path = NULL,
+      ** ppc_luks_vols_uuid = NULL;
    struct crypt_device* ps_crypt_device = NULL;
 
    pc_luks_vols = config_descramble_string( gac_luks_vols, gai_luks_vols );
@@ -184,13 +186,31 @@ int mount_decrypt( char* pc_key_in ) {
    /* Attempt to probe each device for the current host. */
    while( NULL != ps_luks_vol_iter ) {
 
+      #if BLKID
+      ppc_luks_vols_uuid = mount_probe_uuid_blk( ps_luks_vol_iter->strings[0] );
+      if( NULL != ppc_luks_vols_uuid[0] ) {
+         /* Grab the first device if it's availabe. */
+         pc_luks_vol_dev_path = ppc_luks_vols_uuid[0];
+      } else {
+         PRINTF_ERROR(
+            "Unable to determine block device for UUID %s.\n",
+            ps_luks_vol_iter->strings[0]
+         );
+         config_free_string_array( ppc_luks_vols_uuid );
+         ppc_luks_vols_uuid = NULL;
+         continue;
+      }
+      #else
+      pc_luks_vol_dev_path = ps_luks_vol_iter->strings[0]; 
+      #endif /* BLKID */
+
       i_cryptsetup_context = crypt_init(
-         &ps_crypt_device, ps_luks_vol_iter->strings[0]
+         &ps_crypt_device, pc_luks_vol_dev_path
       );
       if( 0 > i_cryptsetup_context ) {
          #ifdef ERRORS
          PRINTF_ERROR(
-            "Unable to open context for %s.\n", ps_luks_vol_iter->strings[0]
+            "Unable to open context for %s.\n", pc_luks_vol_dev_path
          );
          #endif /* ERRORS */
          i_retval = ERROR_RETVAL_DECRYPT_FAIL;
@@ -227,6 +247,8 @@ int mount_decrypt( char* pc_key_in ) {
       }
       crypt_free( ps_crypt_device );
       ps_crypt_device = NULL;
+      config_free_string_array( ppc_luks_vols_uuid );
+      ppc_luks_vols_uuid = NULL;
 
       ps_luks_vol_iter = ps_luks_vol_iter->next;
    }
@@ -240,6 +262,9 @@ ad_cleanup:
    config_free_string_holders( ps_luks_vols );
    if( NULL != ps_crypt_device ) {
       crypt_free( ps_crypt_device );
+   }
+   if( NULL != ppc_luks_vols_uuid ) {
+      config_free_string_array( ppc_luks_vols_uuid );
    }
 
    return i_retval;
