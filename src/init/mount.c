@@ -258,6 +258,11 @@ int mount_mds( void ) {
       ac_command_mdadm[255];
    struct string_holder* ps_md_arrays,
       * ps_md_array_iter;
+   #ifdef BLKID
+   int i = 0;
+   char* pc_uuid_blk_iter = NULL,
+      ** ppc_uuid_blk_list = NULL;
+   #endif /* BLKID */
 
    pc_template_mdadm = config_descramble_string(
       gac_command_mdadm,
@@ -271,7 +276,7 @@ int mount_mds( void ) {
    /* Iterate through the host-specific data structure and create md arrays.  */
    PRINTF_DEBUG( "Building mdadm command line...\n" );
    while( NULL != ps_md_array_iter ) {
-      
+
       /* FIXME: Modernize this process with xasprintf(). */
 
       i_command_mdadm_strlen += strlen( "/dev/" ) + 1; /* +1 for the space. */
@@ -304,6 +309,32 @@ int mount_mds( void ) {
 
       /* Concat each device onto the command template. */
       /* TODO: Tweak this to allow more than two MD devices. */
+      #ifdef BLKID
+      ppc_uuid_blk_list = mount_probe_uuid_blk( ps_md_array_iter->strings[0] );
+      if( NULL == ppc_uuid_blk_list ) {
+         continue;
+      }
+      /*if( NULL == ppc_uuid_blk_list[0] ) {
+         PRINTF_ERROR(
+            "Error finding block device %s.\n", ps_md_array_iter->strings[0]
+         );
+      }*/
+      #if 0
+      while( NULL != (pc_uuid_blk_iter = ppc_uuid_blk_list[i]) ) {
+         /* +1 for the space. */
+         i_command_mdadm_strlen += strlen( ppc_uuid_blk_list[i] ) + 1;
+         i++;
+      }
+      #endif
+      sprintf(
+         ac_command_mdadm,
+         "%s %s %s %s",
+         pc_template_mdadm,
+         ps_md_array_iter->name,
+         ppc_uuid_blk_list[0],
+         ppc_uuid_blk_list[1]
+      );
+      #else
       sprintf(
          ac_command_mdadm,
          "%s %s %s %s",
@@ -312,6 +343,7 @@ int mount_mds( void ) {
          ps_md_array_iter->strings[0],
          ps_md_array_iter->strings[1]
       );
+      #endif /* BLKID */
 
       PRINTF_DEBUG( "Running %s...\n", ac_command_mdadm );
       ERROR_PRINTF_SYSTEM(
@@ -323,6 +355,7 @@ int mount_mds( void ) {
          ps_md_array_iter->name 
       );
 
+      config_free_string_array( ppc_uuid_blk_list );
       /* free( pc_command_mdadm ); */
       /* printf( "%s\n", ac_command_mdadm ); */
 
@@ -511,6 +544,71 @@ mpr_cleanup:
 
    return i_retval;
 }
+
+#ifdef BLKID
+/* Return: The device path(s) for the requested UUID.                         */
+char** mount_probe_uuid_blk( char* pc_blk_uuid_in ) {
+   DIR* ps_dir = NULL;
+   struct dirent* ps_entry = NULL;
+   char* pc_entry_path = NULL,
+      ** ppc_blk_list_out = NULL;
+   int i_blk_list_count_out = 0;
+   const char* pc_uuid_iter = NULL;
+   blkid_probe s_probe;
+
+   ppc_blk_list_out = calloc( 1, sizeof( char* ) );
+
+   PRINTF_DEBUG( "Looking for disk %s...\n", pc_blk_uuid_in );
+   
+   ps_dir = opendir( "/dev" );
+   if( ps_dir ) {
+      while( (ps_entry = readdir( ps_dir )) ) {
+         if( DT_BLK != ps_entry->d_type ) {
+            /* Only bother with block devices. */
+            continue;
+         }
+
+         pc_entry_path = xasprintf( "/dev/%s", ps_entry->d_name );
+         /* PRINTF_DEBUG( "Trying device %s...\n", pc_entry_path ); */
+
+         /* Read the UUID of the current device. */
+         s_probe = blkid_new_probe_from_filename( pc_entry_path );
+         if( !s_probe ) {
+            goto mpub_iter_cleanup;
+         }
+         blkid_do_probe( s_probe );
+         blkid_probe_lookup_value( s_probe, "UUID", &pc_uuid_iter, NULL );
+
+         if( NULL == pc_uuid_iter ) {
+            goto mpub_iter_cleanup;
+         }  
+
+         if( !strcmp( pc_uuid_iter, pc_blk_uuid_in ) ) {
+            PRINTF_DEBUG( "Device found, adding %s...\n", pc_entry_path );
+            /* Make room for the new dev. */
+            i_blk_list_count_out++;
+            ppc_blk_list_out = realloc(
+               ppc_blk_list_out,
+               (i_blk_list_count_out + 1) * sizeof( char* )
+            );
+            /* Make sure there's always a NULL at the end. */
+            ppc_blk_list_out[i_blk_list_count_out] = NULL;
+
+            ppc_blk_list_out[i_blk_list_count_out - 1] = xasprintf(
+               "%s", pc_entry_path
+            );
+         }
+
+         /* Cleanup. */
+mpub_iter_cleanup:
+         free( pc_entry_path );
+         blkid_free_probe( s_probe );
+      }
+   }
+
+   return ppc_blk_list_out;
+}
+#endif /* BLKID */
 
 /* Portions of this code shamelessly stolen from busybox (but changed to      *
  * fit our preferred coding style.                                            */

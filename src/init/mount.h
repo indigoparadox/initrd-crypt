@@ -13,6 +13,9 @@
 #include <sys/vfs.h>
 #include <sys/mount.h>
 #include <libcryptsetup.h>
+#ifdef BLKID
+#include <blkid/blkid.h>
+#endif /* BLKID */
 
 /* Make up for header deficiencies. */
 #ifndef RAMFS_MAGIC
@@ -39,6 +42,9 @@ int mount_mds( void );
 int mount_probe_lvm( void );
 int mount_probe_boot( void );
 int mount_probe_root( void );
+#ifdef BLKID
+char** mount_probe_uuid_blk( char* );
+#endif /* BLKID */
 void mount_chown_root( char*, dev_t );
 int mount_switch_root( char* );
 
