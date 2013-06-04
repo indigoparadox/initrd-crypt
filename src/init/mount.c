@@ -162,9 +162,11 @@ int mount_decrypt( char* pc_key_in ) {
       * ps_luks_vol_iter = NULL;
    char* pc_luks_vols = NULL,
       * pc_console_pw = NULL,
-      * pc_luks_vol_dev_path = NULL,
-      ** ppc_luks_vols_uuid = NULL;
+      * pc_luks_vol_dev_path = NULL;
    struct crypt_device* ps_crypt_device = NULL;
+   #ifdef BLKID
+   char** ppc_luks_vols_uuid = NULL;
+   #endif /* BLKID */
 
    pc_luks_vols = config_descramble_string( gac_luks_vols, gai_luks_vols );
    ps_luks_vols = config_split_string_holders( pc_luks_vols );
@@ -204,6 +206,7 @@ int mount_decrypt( char* pc_key_in ) {
       pc_luks_vol_dev_path = ps_luks_vol_iter->strings[0]; 
       #endif /* BLKID */
 
+      PRINTF_DEBUG( "Unlocking %s...\n", pc_luks_vol_dev_path );
       i_cryptsetup_context = crypt_init(
          &ps_crypt_device, pc_luks_vol_dev_path
       );
@@ -247,8 +250,10 @@ int mount_decrypt( char* pc_key_in ) {
       }
       crypt_free( ps_crypt_device );
       ps_crypt_device = NULL;
+      #ifdef BLKID
       config_free_string_array( ppc_luks_vols_uuid );
       ppc_luks_vols_uuid = NULL;
+      #endif /* BLKID */
 
       ps_luks_vol_iter = ps_luks_vol_iter->next;
    }
@@ -263,9 +268,11 @@ ad_cleanup:
    if( NULL != ps_crypt_device ) {
       crypt_free( ps_crypt_device );
    }
+   #ifdef BLKID
    if( NULL != ppc_luks_vols_uuid ) {
       config_free_string_array( ppc_luks_vols_uuid );
    }
+   #endif /* BLKID */
 
    return i_retval;
 }
@@ -380,7 +387,9 @@ int mount_mds( void ) {
          ps_md_array_iter->name 
       );
 
+      #ifdef BLKID
       config_free_string_array( ppc_uuid_blk_list );
+      #endif /* BLKID */
       /* free( pc_command_mdadm ); */
       /* printf( "%s\n", ac_command_mdadm ); */
 

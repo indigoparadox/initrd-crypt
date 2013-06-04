@@ -4,9 +4,11 @@
 dnl CONFIG_SCR(
 dnl    `md_arrays',`md1</dev/sda1|/dev/sdb1>md2</dev/sda2|/dev/sdb2>'
 dnl )
-CONFIG_SCR(`md_arrays',`md2<02dc368c-ab8b-9d6d-abbe-d2602667a76a>')
-CONFIG_SCR(`luks_vols',`crypt-root<fe6648c2-4f9e-48f6-8706-e327fcf269bc>')
-CONFIG_RAW(`BLKID',1)
+dnl CONFIG_SCR(`md_arrays',`md2<02dc368c-ab8b-9d6d-abbe-d2602667a76a>')
+dnl CONFIG_SCR(`luks_vols',`crypt-root<fe6648c2-4f9e-48f6-8706-e327fcf269bc>')
+dnl CONFIG_RAW(`BLKID',1)
+CONFIG_SCR(`md_arrays',`md2</dev/sda2|/dev/sdb2>')
+CONFIG_SCR(`luks_vols',`crypt-root</dev/md2>')
 
 /* == Prompt == */
 
