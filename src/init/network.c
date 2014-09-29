@@ -221,6 +221,7 @@ int setup_network( void ) {
    memcpy( &s_ifreq.ifr_addr, &s_addr, sizeof( struct sockaddr ) );
 
    PRINTF_DEBUG( "Setting IP address...\n" );
+   /* XXX: Should i_retval be assigned here rather than OR'ed? */
    if( 0 > (i_retval = ioctl( i_socket, SIOCSIFADDR, (char*)&s_ifreq )) ) {
       #ifdef ERRORS
       perror( "Error executing ioctl SIOCSIFADDR on socket" );
@@ -230,6 +231,7 @@ int setup_network( void ) {
    }
 
    /* Set the default route. */
+   /* XXX: This code might not work properly. See rcS from containers. */
    s_addr.sin_addr.s_addr = inet_addr( NET_GATEWAY );
    s_addr.sin_family = AF_INET;
    s_addr.sin_port = 0;
@@ -241,6 +243,7 @@ int setup_network( void ) {
    ((struct sockaddr_in*)&s_route.rt_genmask)->sin_port = 0;
    memcpy( (void*)&s_route.rt_gateway, &s_addr, sizeof( s_addr ) );
    s_route.rt_flags = RTF_UP | RTF_GATEWAY;
+   /* XXX: Should i_retval be assigned here rather than OR'ed? */
    if( 0 > (i_retval = ioctl( i_socket, SIOCADDRT, &s_route )) ) {
       #ifdef ERRORS
       perror( "Error executing ioctl SIOCADDRT on socket" );
