@@ -1,5 +1,5 @@
 
-LIBS = -static -lcryptsetup -ldevmapper -ludev -luuid -lgcrypt -lgpg-error -lrt -lblkid
+LIBS = -static -lcryptsetup -lssl -lcrypto -ldl -ldevmapper -ludev -luuid -lgcrypt -lgpg-error -lrt -lblkid
 ifeq ($(RELEASE),release)
 	# Release
 	# Things like CONSOLE and NET can be defined in individual host configs.
