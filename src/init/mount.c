@@ -236,7 +236,7 @@ int mount_decrypt( char* pc_key_in ) {
          CRYPT_ANY_SLOT,
          pc_key_in,
          strlen( pc_key_in ),
-         0
+         CRYPT_ACTIVATE_ALLOW_DISCARDS
       );
       if( 0 > i_cryptsetup_context ) {
          #ifdef ERRORS
