@@ -1,5 +1,0 @@
-glob:build
-glob:config/test_rsa
-glob:config/authorized_keys
-glob:config/test_tor_*
-glob:tor
